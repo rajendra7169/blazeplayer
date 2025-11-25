@@ -1,0 +1,98 @@
+{
+  "project_info": {
+    "project_number": "142564994990",
+    "project_id": "blaze-player-fab67",
+    "storage_bucket": "blaze-player-fab67.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:142564994990:android:d3da85cfdf1d08d33de23f",
+        "android_client_info": {
+          "package_name": "com.example.blaze_player"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "142564994990-2gk2sv21v0ft91tqfp82nq4kjo7v69tg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.blaze_player",
+            "certificate_hash": "25f5e4d66aeb819bc0d0ad15ce2824b25a5912b3"
+          }
+        },
+        {
+          "client_id": "142564994990-bsfd6cqa9a2n4ef47i7r33p48c67pd00.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCht1rGAdVJraOB-l0ww_VZoSMWoNX-nLI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "142564994990-bsfd6cqa9a2n4ef47i7r33p48c67pd00.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "142564994990-rnjfu942h39flh60rrl3t35o9i2rolan.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.blazePlayer"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:142564994990:android:32b81be7c69c0ed93de23f",
+        "android_client_info": {
+          "package_name": "com.example.blazeplayer_master"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "142564994990-avti8krijtncti7866tqn844aci4b7gs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.blazeplayer_master",
+            "certificate_hash": "25f5e4d66aeb819bc0d0ad15ce2824b25a5912b3"
+          }
+        },
+        {
+          "client_id": "142564994990-bsfd6cqa9a2n4ef47i7r33p48c67pd00.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCht1rGAdVJraOB-l0ww_VZoSMWoNX-nLI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "142564994990-bsfd6cqa9a2n4ef47i7r33p48c67pd00.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "142564994990-rnjfu942h39flh60rrl3t35o9i2rolan.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.blazePlayer"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

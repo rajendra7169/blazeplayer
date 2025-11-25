@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">BlazePlayer</string>
+    <!-- Facebook App ID from https://developers.facebook.com -->
+    <string name="facebook_app_id">537680446107470</string>
+    <string name="fb_login_protocol_scheme">fb537680446107470</string>
+    <!-- Facebook Client Token - Get this from Facebook App Dashboard → Settings → Advanced -->
+    <string name="facebook_client_token">c23c9294b329129579c7a324934c1ee2</string>
+</resources>
