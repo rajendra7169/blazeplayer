@@ -1,4 +1,4 @@
-# BlazePlayer - Professional Flutter Video Player App
+# BlazePlayer - Professional Flutter Music Player App
 
 A production-ready Flutter application with Firebase authentication (Google & Facebook sign-in) built with clean architecture principles.
 
