@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Blaze Player</string>
+    
+    <!-- 
+    IMPORTANT: This is a template file
+    
+    To set up Facebook login:
+    1. Copy this file to 'strings.xml' (remove .template)
+    2. Replace YOUR_FACEBOOK_APP_ID with your actual Facebook App ID
+    3. Replace YOUR_FACEBOOK_CLIENT_TOKEN with your actual Facebook Client Token
+    4. DO NOT commit strings.xml to Git (it's in .gitignore)
+    
+    Get your keys from: https://developers.facebook.com/
+    -->
+    <string name="facebook_app_id">YOUR_FACEBOOK_APP_ID</string>
+    <string name="facebook_client_token">YOUR_FACEBOOK_CLIENT_TOKEN</string>
+</resources>

@@ -39,10 +39,9 @@ class HomeScreen extends StatelessWidget {
             onPressed: () async {
               await authProvider.signOut();
               if (context.mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  '/',
-                  (route) => false,
-                );
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil('/', (route) => false);
               }
             },
           ),
@@ -149,10 +148,9 @@ class HomeScreen extends StatelessWidget {
                 onPressed: () async {
                   await authProvider.signOut();
                   if (context.mounted) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      '/',
-                      (route) => false,
-                    );
+                    Navigator.of(
+                      context,
+                    ).pushNamedAndRemoveUntil('/', (route) => false);
                   }
                 },
                 icon: const Icon(Icons.logout),

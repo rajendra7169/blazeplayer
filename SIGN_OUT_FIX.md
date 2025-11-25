@@ -3,10 +3,12 @@
 ## Problems Identified
 
 ### 1. Wrong Navigation Route
+
 **Issue:** Sign-out was trying to navigate to `/login` which doesn't exist
 **Fixed:** Changed to navigate to `/` (root) which goes through AuthWrapper
 
 ### 2. Navigation Method
+
 **Issue:** Using `pushReplacementNamed` leaves navigation stack
 **Fixed:** Using `pushNamedAndRemoveUntil` to clear entire navigation stack
 
@@ -15,11 +17,13 @@
 ### File: `lib/features/home/screens/home_screen.dart`
 
 **Before:**
+
 ```dart
 Navigator.of(context).pushReplacementNamed('/login');
 ```
 
 **After:**
+
 ```dart
 Navigator.of(context).pushNamedAndRemoveUntil(
   '/',
@@ -56,6 +60,7 @@ If you're seeing two home screens, it might be because:
 3. **Navigation Stack**: Old navigation wasn't clearing the stack properly
 
 **Solution Applied:**
+
 - Using `pushNamedAndRemoveUntil` with `(route) => false` clears entire navigation stack
 - This ensures only one screen is shown after sign out
 
