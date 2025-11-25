@@ -101,7 +101,9 @@ class _RecoveryPasswordScreenState extends State<RecoveryPasswordScreen> {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
+                      color: isDark
+                          ? Colors.grey.shade900
+                          : Colors.grey.shade200,
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
@@ -151,21 +153,6 @@ class _RecoveryPasswordScreenState extends State<RecoveryPasswordScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                // Icon illustration
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: accent.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.lock_reset_rounded,
-                    size: 50,
-                    color: accent,
-                  ),
-                ),
-                const SizedBox(height: 24),
                 // Heading
                 Text(
                   _emailSent ? 'Check Your Email' : 'Recovery Password',
@@ -244,8 +231,9 @@ class _RecoveryPasswordScreenState extends State<RecoveryPasswordScreen> {
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
                             )
                           : const Text(
