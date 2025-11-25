@@ -13,6 +13,7 @@ import 'features/home/screens/home_screen.dart';
 import 'features/onboarding/screens/onboarding_screen.dart';
 import 'features/onboarding/screens/modern_onboarding_screen.dart';
 import 'features/theme_mode/screens/theme_mode_screen.dart';
+import 'features/splash/screens/splash_screen.dart';
 
 // Global theme notifier
 final themeNotifier = ThemeNotifier();
@@ -104,39 +105,6 @@ class AuthWrapper extends StatelessWidget {
     return authProvider.isAuthenticated
         ? const HomeScreen()
         : const ModernOnboardingScreen();
-  }
-}
-
-/// Splash screen shown during initialization
-class SplashScreen extends StatelessWidget {
-  const SplashScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.primaryColor,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.play_circle_filled, size: 100, color: Colors.white),
-            const SizedBox(height: 24),
-            Text(
-              'BlazePlayer',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 40),
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
