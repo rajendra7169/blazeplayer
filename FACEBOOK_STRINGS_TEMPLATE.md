@@ -5,6 +5,7 @@ When setting up this project, you need to create the following file:
 **Location:** `android/app/src/main/res/values/strings.xml`
 
 **Content:**
+
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
@@ -18,6 +19,7 @@ When setting up this project, you need to create the following file:
 ```
 
 **Where to get your values:**
+
 1. Go to https://developers.facebook.com/
 2. Select your app
 3. Settings → Basic

@@ -157,7 +157,9 @@ class ModernOnboardingScreen extends StatelessWidget {
                             size: 18,
                             color: textColor.withOpacity(0.85),
                           ),
-                          onPressed: () => Navigator.of(context).maybePop(),
+                          onPressed: () {
+                            Navigator.of(context).pushReplacementNamed('/theme-mode');
+                          },
                           splashRadius: 22,
                         ),
                       ),
