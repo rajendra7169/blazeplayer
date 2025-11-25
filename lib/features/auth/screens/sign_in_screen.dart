@@ -326,7 +326,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     IconButton(
                       icon: FaIcon(
                         FontAwesomeIcons.google,
-                        color: isDark ? Colors.white : const Color(0xFF4285F4),
+                        color: isDark ? Colors.white : Colors.black,
                         size: 32,
                       ),
                       onPressed: _signInWithGoogle,
@@ -336,7 +336,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     IconButton(
                       icon: FaIcon(
                         FontAwesomeIcons.facebook,
-                        color: isDark ? Colors.white : const Color(0xFF1877F3),
+                        color: isDark ? Colors.white : Colors.black,
                         size: 32,
                       ),
                       onPressed: _signInWithFacebook,

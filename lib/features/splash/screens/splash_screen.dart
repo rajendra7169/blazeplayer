@@ -124,10 +124,7 @@ class _SplashScreenState extends State<SplashScreen>
                     child: ShaderMask(
                       shaderCallback: (Rect bounds) {
                         return const LinearGradient(
-                          colors: [
-                            Color(0xFFFFA726),
-                            Color(0xFFFF7043),
-                          ],
+                          colors: [Color(0xFFFFA726), Color(0xFFFF7043)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ).createShader(bounds);
