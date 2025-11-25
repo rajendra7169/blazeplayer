@@ -40,6 +40,14 @@ class _ThemeModeScreenState extends State<ThemeModeScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Update theme mode based on current theme
+    final currentThemeIsDark = themeNotifier.value == ThemeMode.dark;
+    if (isDarkMode != currentThemeIsDark) {
+      setState(() {
+        isDarkMode = currentThemeIsDark;
+      });
+    }
+    
     // Try to load the image synchronously if already in cache
     final imageProvider = const AssetImage('assets/images/page2.jpg');
     imageProvider
@@ -58,7 +66,7 @@ class _ThemeModeScreenState extends State<ThemeModeScreen>
     super.initState();
     // Initialize with current theme mode
     isDarkMode = themeNotifier.value == ThemeMode.dark;
-    
+
     _arrowController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 350),
