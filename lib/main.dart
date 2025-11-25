@@ -9,6 +9,7 @@ import 'core/utils/logger.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/screens/sign_in_screen.dart';
 import 'features/auth/screens/sign_up_screen.dart';
+import 'features/auth/screens/recovery_password_screen.dart';
 import 'features/home/screens/home_screen.dart';
 import 'features/onboarding/screens/onboarding_screen.dart';
 import 'features/onboarding/screens/modern_onboarding_screen.dart';
@@ -58,6 +59,7 @@ class MyApp extends StatelessWidget {
               '/': (context) => const AuthWrapper(),
               '/sign-in': (context) => const SignInScreen(),
               '/sign-up': (context) => const SignUpScreen(),
+              '/recovery-password': (context) => const RecoveryPasswordScreen(),
               '/home': (context) => const HomeScreen(),
               '/onboarding': (context) => const OnboardingScreen(),
               '/theme-mode': (context) => const ThemeModeScreen(),

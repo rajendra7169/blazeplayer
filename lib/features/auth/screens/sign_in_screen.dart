@@ -277,7 +277,9 @@ class _SignInScreenState extends State<SignInScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.of(context).pushNamed('/recovery-password');
+                    },
                     style: TextButton.styleFrom(foregroundColor: accent),
                     child: const Text('Recovery Password'),
                   ),
