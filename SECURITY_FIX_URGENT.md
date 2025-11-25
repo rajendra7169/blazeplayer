@@ -52,6 +52,7 @@ After removing from Git, recreate the file locally with your NEW keys:
 Better approach for secrets:
 
 1. Create a `.env` file (already in .gitignore):
+
 ```
 FACEBOOK_APP_ID=your_new_app_id
 FACEBOOK_CLIENT_TOKEN=your_new_token
@@ -70,6 +71,7 @@ FACEBOOK_CLIENT_TOKEN=your_new_token
 ## Verification
 
 After cleanup:
+
 1. Check GitHub - file should not appear in any commit
 2. Search your repo on GitHub for "facebook_app_id"
 3. Should return no results

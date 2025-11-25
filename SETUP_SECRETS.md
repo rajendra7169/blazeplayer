@@ -1,6 +1,7 @@
 # 🔐 Setting Up Sensitive Configuration Files
 
 ## Overview
+
 This project requires some configuration files with API keys that are **NOT** included in the repository for security reasons.
 
 ## Files You Need to Create
@@ -10,6 +11,7 @@ This project requires some configuration files with API keys that are **NOT** in
 **File:** `android/app/src/main/res/values/strings.xml`
 
 **Steps:**
+
 1. Copy `strings.xml.template` to `strings.xml` in the same directory
 2. Get your Facebook App ID and Client Token from [Facebook Developers](https://developers.facebook.com/)
 3. Replace placeholders in `strings.xml`:
@@ -29,6 +31,7 @@ This project requires some configuration files with API keys that are **NOT** in
 **File:** `android/app/google-services.json`
 
 **Steps:**
+
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Open your project: "Blaze Player" (blaze-player-fab67)
 3. Go to Project Settings → Your Apps → Android
@@ -40,6 +43,7 @@ This project requires some configuration files with API keys that are **NOT** in
 **File:** `ios/Runner/GoogleService-Info.plist`
 
 **Steps:**
+
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Open your project: "Blaze Player"
 3. Go to Project Settings → Your Apps → iOS
@@ -72,17 +76,21 @@ git status
 ## Troubleshooting
 
 **Problem:** App crashes with "Facebook App ID not found"
+
 - **Solution:** Make sure `strings.xml` exists and has valid Facebook keys
 
 **Problem:** Firebase not working
+
 - **Solution:** Check `google-services.json` is in correct location
 
 **Problem:** Files show up in Git
+
 - **Solution:** Run `git rm --cached <filename>` and check `.gitignore`
 
 ## For New Team Members
 
 When cloning this repository:
+
 1. Ask team lead for the sensitive configuration files
 2. Place them in the correct locations (see above)
 3. Never commit them to Git
@@ -91,6 +99,7 @@ When cloning this repository:
 ## Production Deployment
 
 For production:
+
 - Use separate Firebase projects (dev/staging/prod)
 - Use separate Facebook apps for each environment
 - Store secrets in CI/CD environment variables
