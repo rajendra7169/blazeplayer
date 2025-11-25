@@ -13,7 +13,7 @@ class ThemeModeScreen extends StatefulWidget {
 
 class _ThemeModeScreenState extends State<ThemeModeScreen>
     with SingleTickerProviderStateMixin {
-  bool isDarkMode = false;
+  late bool isDarkMode;
   bool _bgLoaded = false;
   bool _showWeave = false;
 
@@ -56,6 +56,9 @@ class _ThemeModeScreenState extends State<ThemeModeScreen>
   @override
   void initState() {
     super.initState();
+    // Initialize with current theme mode
+    isDarkMode = themeNotifier.value == ThemeMode.dark;
+    
     _arrowController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 350),
