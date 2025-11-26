@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/widgets/glass_button.dart';
 import '../../../core/services/local_storage_service.dart';
 import '../../../main.dart';
+import '../../onboarding/screens/onboarding_screen.dart';
 import '../../onboarding/screens/modern_onboarding_screen.dart';
 
 class ThemeModeScreen extends StatefulWidget {
@@ -13,7 +14,6 @@ class ThemeModeScreen extends StatefulWidget {
 
 class _ThemeModeScreenState extends State<ThemeModeScreen>
     with SingleTickerProviderStateMixin {
-  late bool isDarkMode;
   bool _bgLoaded = false;
   bool _showWeave = false;
 
@@ -27,7 +27,6 @@ class _ThemeModeScreenState extends State<ThemeModeScreen>
     setState(() => _showWeave = true);
     await Future.delayed(const Duration(milliseconds: 350));
     setState(() {
-      isDarkMode = dark;
       _showWeave = false;
     });
     if (dark) {
@@ -40,14 +39,7 @@ class _ThemeModeScreenState extends State<ThemeModeScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Update theme mode based on current theme
-    final currentThemeIsDark = themeNotifier.value == ThemeMode.dark;
-    if (isDarkMode != currentThemeIsDark) {
-      setState(() {
-        isDarkMode = currentThemeIsDark;
-      });
-    }
-    
+
     // Try to load the image synchronously if already in cache
     final imageProvider = const AssetImage('assets/images/page2.jpg');
     imageProvider
@@ -64,8 +56,6 @@ class _ThemeModeScreenState extends State<ThemeModeScreen>
   @override
   void initState() {
     super.initState();
-    // Initialize with current theme mode
-    isDarkMode = themeNotifier.value == ThemeMode.dark;
 
     _arrowController = AnimationController(
       vsync: this,
@@ -114,205 +104,87 @@ class _ThemeModeScreenState extends State<ThemeModeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final logoAsset = isDarkMode
-        ? 'assets/logo/logo_white.png' // Use your white logo for dark mode
-        : 'assets/logo/logo.png';
-    final bgColor = isDarkMode ? Colors.black : Colors.black.withOpacity(0.45);
-    final glassButtonColor = isDarkMode
-        ? [const Color(0xFFFFA726), const Color(0xFFFFA726)]
-        : [const Color(0xFFFFA726), const Color(0xFFFF7043)];
-    const textColor = Colors.white;
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (bool didPop) async {
+        if (didPop) return;
+        // Navigate back to onboarding screen instead of popping
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const OnboardingScreen(),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) => child,
+          ),
+        );
+      },
+      child: ValueListenableBuilder<ThemeMode>(
+        valueListenable: themeNotifier,
+        builder: (context, themeMode, _) {
+          final isDarkMode = themeMode == ThemeMode.dark;
+          final logoAsset = isDarkMode
+              ? 'assets/logo/logo_white.png' // Use your white logo for dark mode
+              : 'assets/logo/logo.png';
+          final bgColor = isDarkMode
+              ? Colors.black
+              : Colors.black.withOpacity(0.45);
+          final glassButtonColor = isDarkMode
+              ? [const Color(0xFFFFA726), const Color(0xFFFFA726)]
+              : [const Color(0xFFFFA726), const Color(0xFFFF7043)];
+          const textColor = Colors.white;
 
-    return Stack(
-      children: [
-        // Background image or solid dark background for dark mode
-        Positioned.fill(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 350),
-            layoutBuilder: (currentChild, previousChildren) => Stack(
-              fit: StackFit.expand,
-              children: [
-                ...previousChildren,
-                if (currentChild != null) currentChild,
-              ],
-            ),
-            child: _bgLoaded
-                ? SizedBox.expand(
-                    key: ValueKey(isDarkMode),
-                    child: ColorFiltered(
-                      colorFilter: ColorFilter.mode(
-                        Colors.black.withOpacity(isDarkMode ? 0.7 : 0.45),
-                        BlendMode.darken,
-                      ),
-                      child: Image.asset(
-                        'assets/images/page2.jpg',
-                        fit: BoxFit.cover,
-                        gaplessPlayback: true,
-                        excludeFromSemantics: true,
-                      ),
-                    ),
-                  )
-                : Container(
-                    key: const ValueKey('loading'),
-                    color: Colors.black,
-                  ),
-          ),
-        ),
-        // Glass overlay with animated color
-        Positioned.fill(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 350),
-            curve: Curves.easeInOut,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [bgColor.withOpacity(0.7), Colors.transparent],
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-              ),
-            ),
-            // Minimal smooth wave effect
-            foregroundDecoration: _showWeave
-                ? BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomLeft,
-                      end: Alignment.topRight,
-                      colors: [
-                        (isDarkMode ? Colors.black : Colors.white).withOpacity(
-                          isDarkMode ? 0.12 : 0.08,
-                        ),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 1.0],
-                    ),
-                  )
-                : null,
-          ),
-        ),
-        // Top Row: Logo and App Name
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 40.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                AnimatedSwitcher(
+          return Stack(
+            children: [
+              // Background image or solid dark background for dark mode
+              Positioned.fill(
+                child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 350),
-                  child: Image.asset(
-                    logoAsset,
-                    key: ValueKey(logoAsset),
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.contain,
+                  layoutBuilder: (currentChild, previousChildren) => Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ...previousChildren,
+                      if (currentChild != null) currentChild,
+                    ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 350),
-                  child: isDarkMode
-                      ? const Text(
-                          'Blaze Player',
-                          key: ValueKey('dark'),
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                            letterSpacing: 1.1,
-                            decoration: TextDecoration.none,
-                          ),
-                        )
-                      : ShaderMask(
-                          key: const ValueKey('light'),
-                          shaderCallback: (Rect bounds) {
-                            return const LinearGradient(
-                              colors: [Color(0xFFFFA726), Color(0xFFFF7043)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ).createShader(bounds);
-                          },
-                          child: const Text(
-                            'Blaze Player',
-                            style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              letterSpacing: 1.1,
-                              decoration: TextDecoration.none,
+                  child: _bgLoaded
+                      ? SizedBox.expand(
+                          key: ValueKey(isDarkMode),
+                          child: ColorFiltered(
+                            colorFilter: ColorFilter.mode(
+                              Colors.black.withOpacity(isDarkMode ? 0.7 : 0.45),
+                              BlendMode.darken,
+                            ),
+                            child: Image.asset(
+                              'assets/images/page2.jpg',
+                              fit: BoxFit.cover,
+                              gaplessPlayback: true,
+                              excludeFromSemantics: true,
                             ),
                           ),
+                        )
+                      : Container(
+                          key: const ValueKey('loading'),
+                          color: Colors.black,
                         ),
                 ),
-              ],
-            ),
-          ),
-        ),
-        // Content
-        Align(
-          alignment: Alignment.bottomCenter,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24.0,
-              vertical: 72.0,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 32),
-                const Text(
-                  'Choose mode:',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                    decoration: TextDecoration.none,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _ModeToggle(
-                      icon: Icons.nightlight_round,
-                      label: 'Dark mode',
-                      selected: isDarkMode,
-                      onTap: () => _setTheme(true),
+              ),
+              // Glass overlay with animated color
+              Positioned.fill(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeInOut,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [bgColor.withOpacity(0.7), Colors.transparent],
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
                     ),
-                    const SizedBox(width: 32),
-                    _ModeToggle(
-                      icon: Icons.wb_sunny_rounded,
-                      label: 'Light Mode',
-                      selected: !isDarkMode,
-                      onTap: () => _setTheme(false),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 56),
-                GlassButton(
-                  key: _buttonKey,
-                  text: 'Continue',
-                  onPressed: () {},
-                  onArrowFly: () {
-                    _startArrowAnimation();
-                  },
-                  isArrowFlying: _showOverlayArrow,
-                  gradientColors: glassButtonColor,
-                  textStyle: const TextStyle(
-                    fontFamily: 'Roboto',
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.1,
-                    decoration: TextDecoration.none,
-                    color: Colors.white,
                   ),
-                ),
-                if (_showWeave)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 350),
-                        curve: Curves.easeInOut,
-                        decoration: BoxDecoration(
+                  // Minimal smooth wave effect
+                  foregroundDecoration: _showWeave
+                      ? BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.bottomLeft,
                             end: Alignment.topRight,
@@ -323,37 +195,183 @@ class _ThemeModeScreenState extends State<ThemeModeScreen>
                             ],
                             stops: const [0.0, 1.0],
                           ),
+                        )
+                      : null,
+                ),
+              ),
+              // Top Row: Logo and App Name
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 40.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 350),
+                        child: Image.asset(
+                          logoAsset,
+                          key: ValueKey(logoAsset),
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.contain,
                         ),
                       ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        // Overlay arrow animation (move out of Column, direct child of Stack)
-        if (_showOverlayArrow)
-          AnimatedBuilder(
-            animation: _arrowAnimation,
-            builder: (context, child) {
-              final screenWidth = MediaQuery.of(context).size.width;
-              return Positioned(
-                left:
-                    _arrowStart.dx +
-                    (screenWidth - _arrowStart.dx) * _arrowAnimation.value,
-                top: _arrowStart.dy,
-                child: Opacity(
-                  opacity: 1 - _arrowAnimation.value * 0.5,
-                  child: const Icon(
-                    Icons.arrow_forward_rounded,
-                    color: Colors.white,
-                    size: 32,
+                      const SizedBox(width: 8),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 350),
+                        child: isDarkMode
+                            ? const Text(
+                                'Blaze Player',
+                                key: ValueKey('dark'),
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                  letterSpacing: 1.1,
+                                  decoration: TextDecoration.none,
+                                ),
+                              )
+                            : ShaderMask(
+                                key: const ValueKey('light'),
+                                shaderCallback: (Rect bounds) {
+                                  return const LinearGradient(
+                                    colors: [
+                                      Color(0xFFFFA726),
+                                      Color(0xFFFF7043),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ).createShader(bounds);
+                                },
+                                child: const Text(
+                                  'Blaze Player',
+                                  style: TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    letterSpacing: 1.1,
+                                    decoration: TextDecoration.none,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ],
                   ),
                 ),
-              );
-            },
-          ),
-      ],
+              ),
+              // Content
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0,
+                    vertical: 72.0,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 32),
+                      const Text(
+                        'Choose mode:',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                          decoration: TextDecoration.none,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 32),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _ModeToggle(
+                            icon: Icons.nightlight_round,
+                            label: 'Dark mode',
+                            selected: isDarkMode,
+                            onTap: () => _setTheme(true),
+                          ),
+                          const SizedBox(width: 32),
+                          _ModeToggle(
+                            icon: Icons.wb_sunny_rounded,
+                            label: 'Light Mode',
+                            selected: !isDarkMode,
+                            onTap: () => _setTheme(false),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 56),
+                      GlassButton(
+                        key: _buttonKey,
+                        text: 'Continue',
+                        onPressed: () {},
+                        onArrowFly: () {
+                          _startArrowAnimation();
+                        },
+                        isArrowFlying: _showOverlayArrow,
+                        gradientColors: glassButtonColor,
+                        textStyle: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.1,
+                          decoration: TextDecoration.none,
+                          color: Colors.white,
+                        ),
+                      ),
+                      if (_showWeave)
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 350),
+                              curve: Curves.easeInOut,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.bottomLeft,
+                                  end: Alignment.topRight,
+                                  colors: [
+                                    (isDarkMode ? Colors.black : Colors.white)
+                                        .withOpacity(isDarkMode ? 0.12 : 0.08),
+                                    Colors.transparent,
+                                  ],
+                                  stops: const [0.0, 1.0],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              // Overlay arrow animation (move out of Column, direct child of Stack)
+              if (_showOverlayArrow)
+                AnimatedBuilder(
+                  animation: _arrowAnimation,
+                  builder: (context, child) {
+                    final screenWidth = MediaQuery.of(context).size.width;
+                    return Positioned(
+                      left:
+                          _arrowStart.dx +
+                          (screenWidth - _arrowStart.dx) *
+                              _arrowAnimation.value,
+                      top: _arrowStart.dy,
+                      child: Opacity(
+                        opacity: 1 - _arrowAnimation.value * 0.5,
+                        child: const Icon(
+                          Icons.arrow_forward_rounded,
+                          color: Colors.white,
+                          size: 32,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

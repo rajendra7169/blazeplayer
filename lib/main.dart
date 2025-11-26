@@ -7,10 +7,11 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/theme_notifier.dart';
 import 'core/utils/logger.dart';
 import 'features/auth/providers/auth_provider.dart';
+import 'features/player/providers/music_player_provider.dart';
 import 'features/auth/screens/sign_in_screen.dart';
 import 'features/auth/screens/sign_up_screen.dart';
 import 'features/auth/screens/recovery_password_screen.dart';
-import 'features/home/screens/home_screen.dart';
+import 'features/home/screens/music_home_screen.dart';
 import 'features/onboarding/screens/onboarding_screen.dart';
 import 'features/onboarding/screens/modern_onboarding_screen.dart';
 import 'features/theme_mode/screens/theme_mode_screen.dart';
@@ -44,7 +45,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => AuthProvider())],
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => MusicPlayerProvider()),
+      ],
       child: ValueListenableBuilder<ThemeMode>(
         valueListenable: themeNotifier,
         builder: (context, themeMode, _) {
@@ -60,7 +64,7 @@ class MyApp extends StatelessWidget {
               '/sign-in': (context) => const SignInScreen(),
               '/sign-up': (context) => const SignUpScreen(),
               '/recovery-password': (context) => const RecoveryPasswordScreen(),
-              '/home': (context) => const HomeScreen(),
+              '/music-home': (context) => const MusicHomeScreen(),
               '/onboarding': (context) => const OnboardingScreen(),
               '/theme-mode': (context) => const ThemeModeScreen(),
               '/modern-onboarding': (context) => const ModernOnboardingScreen(),
@@ -96,7 +100,7 @@ class AuthWrapper extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.done) {
             return authProvider.isAuthenticated
-                ? const HomeScreen()
+                ? const MusicHomeScreen()
                 : const ModernOnboardingScreen();
           }
           return const SplashScreen();
@@ -105,7 +109,7 @@ class AuthWrapper extends StatelessWidget {
     }
 
     return authProvider.isAuthenticated
-        ? const HomeScreen()
+        ? const MusicHomeScreen()
         : const ModernOnboardingScreen();
   }
 }

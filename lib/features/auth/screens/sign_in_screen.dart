@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 
@@ -75,6 +76,24 @@ class _SignInScreenState extends State<SignInScreen> {
       Navigator.of(context).pushReplacementNamed('/home');
     } else {
       _showError(authProvider.errorMessage ?? 'Sign in failed');
+    }
+  }
+
+  Future<void> _launchEmailSupport() async {
+    final Uri emailUri = Uri(
+      scheme: 'mailto',
+      path: 'rajendrapandey199971@gmail.com',
+      query:
+          'subject=Blaze Player Support Request&body=Hello Support Team,%0A%0AI need help with:%0A%0A',
+    );
+
+    try {
+      await launchUrl(emailUri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (!mounted) return;
+      _showError(
+        'Could not open email app. Please email: rajendrapandey199971@gmail.com',
+      );
     }
   }
 
@@ -178,19 +197,23 @@ class _SignInScreenState extends State<SignInScreen> {
                 ),
                 const SizedBox(height: 8),
                 // Support text
-                RichText(
-                  text: TextSpan(
-                    text: 'If you need any support ',
-                    style: TextStyle(color: descColor, fontSize: 13),
-                    children: [
-                      TextSpan(
-                        text: 'Click Here',
-                        style: TextStyle(
-                          color: accent,
-                          fontWeight: FontWeight.w500,
+                GestureDetector(
+                  onTap: _launchEmailSupport,
+                  child: RichText(
+                    text: TextSpan(
+                      text: 'If you need any support ',
+                      style: TextStyle(color: descColor, fontSize: 13),
+                      children: [
+                        TextSpan(
+                          text: 'Click Here',
+                          style: TextStyle(
+                            color: accent,
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.underline,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
