@@ -8,9 +8,10 @@ import '../widgets/category_grid.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../player/providers/music_player_provider.dart';
 import '../../player/widgets/mini_player.dart';
-import '../../player/models/song_model.dart';
-import '../../player/screens/full_player_screen.dart';
 import '../../music_library/screens/music_library_screen.dart';
+import '../../music_library/screens/recently_played_screen.dart';
+import '../../music_library/screens/recommended_songs_screen.dart';
+import '../../music_library/screens/all_songs_screen.dart';
 import '../../../main.dart' show themeNotifier;
 
 class MusicHomeScreen extends StatefulWidget {
@@ -398,102 +399,6 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      // Music Library button
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const MusicLibraryScreen(),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.library_music),
-                          label: const Text('Browse Music Library'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDark
-                                ? const Color(0xFFFFA726)
-                                : const Color(0xFFFF7043),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Test button to play music (temporary - for testing)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            final songs = Song.getDummySongs();
-                            if (songs.isNotEmpty) {
-                              playerProvider.playSong(songs[0]);
-                              // Navigate to full player screen
-                              Navigator.of(context).push(
-                                PageRouteBuilder(
-                                  opaque: false,
-                                  barrierColor: Colors.black.withOpacity(0.0),
-                                  pageBuilder:
-                                      (
-                                        context,
-                                        animation,
-                                        secondaryAnimation,
-                                      ) => const FullPlayerScreen(),
-                                  transitionsBuilder:
-                                      (
-                                        context,
-                                        animation,
-                                        secondaryAnimation,
-                                        child,
-                                      ) {
-                                        const begin = Offset(0.0, 1.0);
-                                        const end = Offset.zero;
-                                        const curve = Curves.easeOutCubic;
-                                        var tween = Tween(
-                                          begin: begin,
-                                          end: end,
-                                        ).chain(CurveTween(curve: curve));
-                                        var offsetAnimation = animation.drive(
-                                          tween,
-                                        );
-                                        return SlideTransition(
-                                          position: offsetAnimation,
-                                          child: child,
-                                        );
-                                      },
-                                  transitionDuration: const Duration(
-                                    milliseconds: 400,
-                                  ),
-                                ),
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.play_arrow),
-                          label: const Text('Test Play Song (Demo)'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDark
-                                ? const Color(0xFF6D6D6D)
-                                : const Color(0xFFBDBDBD),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -508,19 +413,50 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                       const SizedBox(height: 16),
                       SectionHeader(
                         title: 'Recently Played',
-                        onSeeAllTap: () {},
+                        onSeeAllTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => RecentlyPlayedScreen(),
+                            ),
+                          );
+                        },
                       ),
                       SizedBox(
                         height: 200,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: 10,
-                          itemBuilder: (context, index) {
-                            return MusicCard(
-                              title: 'Happier Than Ever ${index + 1}',
-                              subtitle: 'Billie Eilish',
-                              onTap: () {},
+                        child: Consumer<MusicPlayerProvider>(
+                          builder: (context, playerProvider, _) {
+                            final songs = playerProvider.recentlyPlayedSongs;
+                            if (songs.isEmpty) {
+                              return Center(
+                                child: Text(
+                                  'No recently played songs yet.',
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white70
+                                        : Colors.black54,
+                                  ),
+                                ),
+                              );
+                            }
+                            return ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              itemCount: songs.length > 10 ? 10 : songs.length,
+                              itemBuilder: (context, index) {
+                                final song = songs[index];
+                                return RepaintBoundary(
+                                  child: MusicCard(
+                                    title: song.title,
+                                    subtitle: song.artist,
+                                    songId: int.tryParse(song.id),
+                                    onTap: () {
+                                      playerProvider.playSong(song);
+                                    },
+                                  ),
+                                );
+                              },
                             );
                           },
                         ),
@@ -536,19 +472,48 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                       const SizedBox(height: 16),
                       SectionHeader(
                         title: 'Recommended for You',
-                        onSeeAllTap: () {},
+                        onSeeAllTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => RecommendedSongsScreen(),
+                            ),
+                          );
+                        },
                       ),
                       SizedBox(
                         height: 200,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: 10,
-                          itemBuilder: (context, index) {
-                            return MusicCard(
-                              title: 'Armani White ${index + 1}',
-                              subtitle: 'Hip Hop',
-                              onTap: () {},
+                        child: Consumer<MusicPlayerProvider>(
+                          builder: (context, playerProvider, _) {
+                            final songs = playerProvider.recommendedSongs;
+                            if (songs.isEmpty) {
+                              return Center(
+                                child: Text(
+                                  'No recommendations yet.',
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white70
+                                        : Colors.black54,
+                                  ),
+                                ),
+                              );
+                            }
+                            return ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              itemCount: songs.length > 10 ? 10 : songs.length,
+                              itemBuilder: (context, index) {
+                                final song = songs[index];
+                                return MusicCard(
+                                  title: song.title,
+                                  subtitle: song.artist,
+                                  songId: int.tryParse(song.id),
+                                  onTap: () {
+                                    playerProvider.playSong(song);
+                                  },
+                                );
+                              },
                             );
                           },
                         ),
@@ -566,7 +531,15 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                         title: 'Browse Categories',
                         onSeeAllTap: null,
                       ),
-                      const CategoryGrid(),
+                      CategoryGrid(
+                        onSongsTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const AllSongsScreen(),
+                            ),
+                          );
+                        },
+                      ),
                       const SizedBox(height: 16),
                     ],
                   ),
@@ -696,11 +669,11 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
 
   Widget _buildTabBar() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tabs = ['News', 'Video', 'Artist', 'Podcast'];
+    final tabs = ['Home', 'Quick Pick', 'Favorites', 'Mood'];
 
     return Container(
-      height: 50,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      height: 40,
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: tabs.length,
@@ -711,15 +684,15 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
               setState(() => _selectedTab = index);
             },
             child: Container(
-              margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              margin: EdgeInsets.only(left: index == 0 ? 20 : 0, right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
               decoration: BoxDecoration(
                 color: isSelected
                     ? (isDark ? Colors.white : Colors.black87)
                     : (isDark
                           ? Colors.white.withOpacity(0.05)
                           : Colors.grey[200]),
-                borderRadius: BorderRadius.circular(25),
+                borderRadius: BorderRadius.circular(18),
                 border: isSelected
                     ? null
                     : Border.all(
@@ -730,7 +703,7 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                 child: Text(
                   tabs[index],
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: isSelected
                         ? (isDark ? Colors.black : Colors.white)

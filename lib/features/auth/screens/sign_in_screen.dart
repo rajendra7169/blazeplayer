@@ -73,7 +73,7 @@ class _SignInScreenState extends State<SignInScreen> {
     if (!mounted) return;
 
     if (success) {
-      Navigator.of(context).pushReplacementNamed('/home');
+      Navigator.of(context).pushReplacementNamed('/music-home');
     } else {
       _showError(authProvider.errorMessage ?? 'Sign in failed');
     }
@@ -104,7 +104,8 @@ class _SignInScreenState extends State<SignInScreen> {
     if (!mounted) return;
 
     if (success) {
-      Navigator.of(context).pushReplacementNamed('/home');
+      // Use the correct route name
+      Navigator.of(context).pushReplacementNamed('/music-home');
     } else {
       _showError(authProvider.errorMessage ?? 'Google sign-in failed');
     }
@@ -117,7 +118,8 @@ class _SignInScreenState extends State<SignInScreen> {
     if (!mounted) return;
 
     if (success) {
-      Navigator.of(context).pushReplacementNamed('/home');
+      // Use the correct route name
+      Navigator.of(context).pushReplacementNamed('/music-home');
     } else {
       _showError(authProvider.errorMessage ?? 'Facebook sign-in failed');
     }

@@ -6,6 +6,8 @@ class Song {
   final String? albumArt;
   final Duration duration;
   final String filePath;
+  final int playCount;
+  final String? genre;
 
   Song({
     required this.id,
@@ -15,6 +17,8 @@ class Song {
     this.albumArt,
     required this.duration,
     required this.filePath,
+    this.playCount = 0,
+    this.genre,
   });
 
   // Dummy songs for testing
@@ -28,6 +32,8 @@ class Song {
         albumArt: null,
         duration: const Duration(minutes: 3, seconds: 45),
         filePath: '',
+        playCount: 10,
+        genre: 'Soul',
       ),
       Song(
         id: '2',
@@ -37,6 +43,8 @@ class Song {
         albumArt: null,
         duration: const Duration(minutes: 3, seconds: 20),
         filePath: '',
+        playCount: 25,
+        genre: 'Pop',
       ),
       Song(
         id: '3',
@@ -46,6 +54,8 @@ class Song {
         albumArt: null,
         duration: const Duration(minutes: 3, seconds: 23),
         filePath: '',
+        playCount: 15,
+        genre: 'Pop',
       ),
     ];
   }

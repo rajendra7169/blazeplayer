@@ -57,7 +57,8 @@ class CategoryCard extends StatelessWidget {
 }
 
 class CategoryGrid extends StatelessWidget {
-  const CategoryGrid({super.key});
+  final VoidCallback? onSongsTap;
+  const CategoryGrid({super.key, this.onSongsTap});
 
   @override
   Widget build(BuildContext context) {
@@ -112,9 +113,7 @@ class CategoryGrid extends StatelessWidget {
             title: category['title'] as String,
             icon: category['icon'] as IconData,
             color: category['color'] as Color,
-            onTap: () {
-              // Navigate to category screen
-            },
+            onTap: category['title'] == 'Songs' ? onSongsTap : null,
           );
         },
       ),

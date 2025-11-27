@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/music_player_provider.dart';
+import '../widgets/artwork_color_builder.dart';
+import '../widgets/cached_artwork_widget.dart';
 
 class LyricsScreen extends StatefulWidget {
   const LyricsScreen({super.key});
@@ -14,57 +18,180 @@ class LyricsScreen extends StatefulWidget {
 class _LyricsScreenState extends State<LyricsScreen> {
   String? _lyrics;
   int? _currentLineIndex;
+  bool _isLoading = false;
+  bool _isDragging = false;
+  double _dragPosition = 0.0;
 
   @override
   void initState() {
     super.initState();
-    // TODO: Load lyrics from file or database
-    // For now, we'll show placeholder text
+    _loadSavedLyrics();
+  }
+
+  Future<void> _loadSavedLyrics() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final playerProvider = context.read<MusicPlayerProvider>();
+      final currentSong = playerProvider.currentSong;
+
+      if (currentSong != null) {
+        final prefs = await SharedPreferences.getInstance();
+        final songKey = 'lyrics_${currentSong.id}';
+        final savedLyricsPath = prefs.getString(songKey);
+
+        if (savedLyricsPath != null && savedLyricsPath.isNotEmpty) {
+          final file = File(savedLyricsPath);
+          if (await file.exists()) {
+            final content = await file.readAsString();
+            setState(() {
+              _lyrics = _parseLrcFile(content);
+            });
+          } else {
+            // File no longer exists, remove the saved path
+            await prefs.remove(songKey);
+          }
+        }
+      }
+    } catch (e) {
+      print('Error loading saved lyrics: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveLyricsPath(String songId, String filePath) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final songKey = 'lyrics_$songId';
+      await prefs.setString(songKey, filePath);
+    } catch (e) {
+      print('Error saving lyrics path: $e');
+    }
   }
 
   Future<void> _pickLyricsFile() async {
     try {
-      // FilePicker handles permissions internally on modern Android
+      final playerProvider = context.read<MusicPlayerProvider>();
+      final currentSong = playerProvider.currentSong;
+
+      if (currentSong == null) return;
+
+      // Use allowedExtensions with proper type
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['txt', 'lrc'],
+        type: FileType.any, // Changed to 'any' for better compatibility
         allowMultiple: false,
+        withData: true, // This ensures file content is available
       );
 
       if (result != null && result.files.isNotEmpty) {
-        // TODO: Read and parse the lyrics file
-        // For now, show a success message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Lyrics file selected: ${result.files.first.name}'),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
-          );
+        final file = result.files.first;
+        final fileName = file.name.toLowerCase();
+
+        // Check if it's a valid lyrics file
+        if (fileName.endsWith('.txt') || fileName.endsWith('.lrc')) {
+          // Read the file content
+          String? lyricsContent;
+          String? filePath;
+
+          if (file.path != null) {
+            // Read from file path
+            filePath = file.path!;
+            final ioFile = File(filePath);
+            lyricsContent = await ioFile.readAsString();
+          } else if (file.bytes != null) {
+            // Read from bytes
+            lyricsContent = String.fromCharCodes(file.bytes!);
+          }
+
+          if (lyricsContent != null && lyricsContent.isNotEmpty) {
+            setState(() {
+              _lyrics = _parseLrcFile(lyricsContent!);
+            });
+
+            // Save the file path for this song
+            if (filePath != null) {
+              await _saveLyricsPath(currentSong.id.toString(), filePath);
+            }
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Lyrics loaded: ${file.name}'),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Lyrics file is empty'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please select a .txt or .lrc file'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
         }
       }
-    } on Exception catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
     } catch (e) {
+      print('Error picking file: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to pick file: ${e.toString()}'),
+            content: Text('Failed to load lyrics: ${e.toString()}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
         );
       }
     }
+  }
+
+  String _parseLrcFile(String content) {
+    // Split by lines
+    final lines = content.split('\n');
+    final lyricsLines = <String>[];
+
+    for (var line in lines) {
+      line = line.trim();
+      if (line.isEmpty) {
+        lyricsLines.add('');
+        continue;
+      }
+
+      // Remove .lrc timestamp format [00:12.00] or [00:12:00]
+      // This regex removes timestamps like [00:12.00] or [mm:ss.xx]
+      final cleanedLine = line
+          .replaceAll(RegExp(r'\[\d{2}:\d{2}[:.]\d{2}\]'), '')
+          .trim();
+
+      // Also handle metadata tags like [ti:Title], [ar:Artist], etc.
+      if (cleanedLine.startsWith('[') &&
+          cleanedLine.contains(':') &&
+          cleanedLine.endsWith(']')) {
+        // Skip metadata
+        continue;
+      }
+
+      if (cleanedLine.isNotEmpty) {
+        lyricsLines.add(cleanedLine);
+      }
+    }
+
+    return lyricsLines.join('\n');
   }
 
   @override
@@ -84,218 +211,215 @@ class _LyricsScreenState extends State<LyricsScreen> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onVerticalDragEnd: (details) {
-        // Swipe down to close lyrics screen
-        if (details.primaryVelocity != null && details.primaryVelocity! > 200) {
+        final velocity = details.primaryVelocity ?? 0;
+
+        // Swipe down to close lyrics screen (velocity > 300)
+        if (velocity > 300) {
           Navigator.of(context).pop();
         }
       },
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: isDark
-                  ? [
-                      const Color(0xFF2D2D2D),
-                      const Color(0xFF1A1A1A),
-                      const Color(0xFF000000),
-                    ]
-                  : [
-                      const Color(0xFFE8B4B8),
-                      const Color(0xFFB8A4C9),
-                      const Color(0xFF8B7B9B),
-                    ],
-            ),
-          ),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              color: isDark
-                  ? Colors.black.withOpacity(0.3)
-                  : Colors.white.withOpacity(0.1),
-              child: SafeArea(
+        body: currentSong.albumArt != null
+            ? ArtworkColorBuilder(
+                songId: currentSong.albumArt!,
+                builder: (dominantColor, vibrantColor) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          dominantColor,
+                          Color.lerp(dominantColor, vibrantColor, 0.6)!,
+                          vibrantColor,
+                          Color.lerp(vibrantColor, Colors.black, 0.4)!,
+                          const Color(0xFF000000),
+                        ],
+                        stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
+                      ),
+                    ),
+                    child: _buildLyricsContent(
+                      context,
+                      playerProvider,
+                      currentSong,
+                      isDark,
+                    ),
+                  );
+                },
+              )
+            : Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: isDark
+                        ? [
+                            const Color(0xFF2D2D2D),
+                            const Color(0xFF1A1A1A),
+                            const Color(0xFF000000),
+                          ]
+                        : [
+                            const Color(0xFFE8B4B8),
+                            const Color(0xFFB8A4C9),
+                            const Color(0xFF8B7B9B),
+                          ],
+                  ),
+                ),
+                child: _buildLyricsContent(
+                  context,
+                  playerProvider,
+                  currentSong,
+                  isDark,
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildLyricsContent(
+    BuildContext context,
+    MusicPlayerProvider playerProvider,
+    dynamic currentSong,
+    bool isDark,
+  ) {
+    final hasLyrics = _lyrics != null;
+
+    return BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+      child: Container(
+        color: Colors.black.withOpacity(0.4),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Top Bar
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: isDark ? Colors.white : Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                    Text(
+                      currentSong.title,
+                      style: TextStyle(
+                        color: isDark ? Colors.white : Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {},
+                      icon: Icon(
+                        Icons.more_horiz_rounded,
+                        color: isDark ? Colors.white : Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Lyrics Content
+              Expanded(
+                child: _isLoading
+                    ? Center(
+                        child: CircularProgressIndicator(
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                      )
+                    : hasLyrics
+                    ? _buildLyricsView(isDark)
+                    : _buildNoLyricsView(isDark),
+              ),
+
+              // Progress Slider
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 30,
+                  vertical: 8,
+                ),
                 child: Column(
                   children: [
-                    // Top Bar
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
+                    SliderTheme(
+                      data: SliderThemeData(
+                        trackHeight: 3,
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 6,
+                        ),
+                        overlayShape: const RoundSliderOverlayShape(
+                          overlayRadius: 16,
+                        ),
+                        activeTrackColor: isDark ? Colors.white : Colors.white,
+                        inactiveTrackColor:
+                            (isDark ? Colors.white : Colors.white).withOpacity(
+                              0.3,
+                            ),
+                        thumbColor: isDark ? Colors.white : Colors.white,
+                        overlayColor: (isDark ? Colors.white : Colors.white)
+                            .withOpacity(0.2),
                       ),
+                      child: Slider(
+                        value: _isDragging
+                            ? _dragPosition
+                            : playerProvider.currentPosition.inSeconds
+                                  .toDouble()
+                                  .clamp(
+                                    0.0,
+                                    currentSong.duration.inSeconds.toDouble(),
+                                  )
+                                  .toDouble(),
+                        max: currentSong.duration.inSeconds.toDouble() > 0
+                            ? currentSong.duration.inSeconds.toDouble()
+                            : 0.1,
+                        onChanged: (value) {
+                          setState(() {
+                            _isDragging = true;
+                            _dragPosition = value;
+                          });
+                        },
+                        onChangeEnd: (value) {
+                          playerProvider.seekTo(
+                            Duration(seconds: value.toInt()),
+                          );
+                          setState(() {
+                            _isDragging = false;
+                          });
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          IconButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            icon: Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              color: isDark ? Colors.white : Colors.white,
-                              size: 32,
+                          Text(
+                            _formatDuration(
+                              _isDragging
+                                  ? Duration(seconds: _dragPosition.toInt())
+                                  : playerProvider.currentPosition,
+                            ),
+                            style: TextStyle(
+                              color: (isDark ? Colors.white : Colors.white)
+                                  .withOpacity(0.7),
+                              fontSize: 12,
                             ),
                           ),
                           Text(
-                            currentSong.title,
+                            '-${_formatDuration(_isDragging ? Duration(seconds: (currentSong.duration.inSeconds - _dragPosition.toInt())) : currentSong.duration - playerProvider.currentPosition)}',
                             style: TextStyle(
-                              color: isDark ? Colors.white : Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () {},
-                            icon: Icon(
-                              Icons.more_horiz_rounded,
-                              color: isDark ? Colors.white : Colors.white,
-                              size: 28,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Lyrics Content
-                    Expanded(
-                      child: hasLyrics
-                          ? _buildLyricsView(isDark)
-                          : _buildNoLyricsView(isDark),
-                    ),
-
-                    // Progress Slider
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 30,
-                        vertical: 8,
-                      ),
-                      child: Column(
-                        children: [
-                          SliderTheme(
-                            data: SliderThemeData(
-                              trackHeight: 3,
-                              thumbShape: const RoundSliderThumbShape(
-                                enabledThumbRadius: 6,
-                              ),
-                              overlayShape: const RoundSliderOverlayShape(
-                                overlayRadius: 16,
-                              ),
-                              activeTrackColor: isDark
-                                  ? Colors.white
-                                  : Colors.white,
-                              inactiveTrackColor:
-                                  (isDark ? Colors.white : Colors.white)
-                                      .withOpacity(0.3),
-                              thumbColor: isDark ? Colors.white : Colors.white,
-                              overlayColor:
-                                  (isDark ? Colors.white : Colors.white)
-                                      .withOpacity(0.2),
-                            ),
-                            child: Slider(
-                              value: playerProvider.currentPosition.inSeconds
-                                  .toDouble(),
-                              max: currentSong.duration.inSeconds.toDouble(),
-                              onChanged: (value) {
-                                playerProvider.seekTo(
-                                  Duration(seconds: value.toInt()),
-                                );
-                              },
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  _formatDuration(
-                                    playerProvider.currentPosition,
-                                  ),
-                                  style: TextStyle(
-                                    color:
-                                        (isDark ? Colors.white : Colors.white)
-                                            .withOpacity(0.7),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  '-${_formatDuration(currentSong.duration - playerProvider.currentPosition)}',
-                                  style: TextStyle(
-                                    color:
-                                        (isDark ? Colors.white : Colors.white)
-                                            .withOpacity(0.7),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Bottom Mini Player Info
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      child: Row(
-                        children: [
-                          // Album Art
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              color: Colors.white.withOpacity(0.1),
-                            ),
-                            child: currentSong.albumArt != null
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.asset(
-                                      currentSong.albumArt!,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  )
-                                : Icon(
-                                    Icons.music_note_rounded,
-                                    color: Colors.white.withOpacity(0.5),
-                                  ),
-                          ),
-                          const SizedBox(width: 12),
-                          // Song Info
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  currentSong.title,
-                                  style: TextStyle(
-                                    color: isDark ? Colors.white : Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  currentSong.artist,
-                                  style: TextStyle(
-                                    color:
-                                        (isDark ? Colors.white : Colors.white)
-                                            .withOpacity(0.7),
-                                    fontSize: 13,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Favorite Icon
-                          IconButton(
-                            onPressed: () {},
-                            icon: Icon(
-                              Icons.favorite_border_rounded,
-                              color: isDark ? Colors.white : Colors.white,
+                              color: (isDark ? Colors.white : Colors.white)
+                                  .withOpacity(0.7),
+                              fontSize: 12,
                             ),
                           ),
                         ],
@@ -304,7 +428,92 @@ class _LyricsScreenState extends State<LyricsScreen> {
                   ],
                 ),
               ),
-            ),
+
+              // Bottom Mini Player Info
+              Container(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    // Album Art
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox(
+                        width: 50,
+                        height: 50,
+                        child: currentSong.albumArt != null
+                            ? CachedArtworkWidget(
+                                songId: currentSong.albumArt!,
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                                borderRadius: BorderRadius.zero,
+                                fallback: Container(
+                                  width: 50,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.1),
+                                  ),
+                                  child: Icon(
+                                    Icons.music_note_rounded,
+                                    color: Colors.white.withOpacity(0.5),
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.1),
+                                ),
+                                child: Icon(
+                                  Icons.music_note_rounded,
+                                  color: Colors.white.withOpacity(0.5),
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Song Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            currentSong.title,
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            currentSong.artist,
+                            style: TextStyle(
+                              color: (isDark ? Colors.white : Colors.white)
+                                  .withOpacity(0.7),
+                              fontSize: 13,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Favorite Icon
+                    IconButton(
+                      onPressed: () {},
+                      icon: Icon(
+                        Icons.favorite_border_rounded,
+                        color: isDark ? Colors.white : Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -312,19 +521,8 @@ class _LyricsScreenState extends State<LyricsScreen> {
   }
 
   Widget _buildLyricsView(bool isDark) {
-    // Sample lyrics structure (will be replaced with actual lyrics)
-    final lines = [
-      '(Verse 1)',
-      '',
-      'Sample lyric line one',
-      'Sample lyric line two',
-      'Sample lyric line three',
-      '',
-      '(Chorus)',
-      '',
-      'Sample chorus line one',
-      'Sample chorus line two',
-    ];
+    // Split the lyrics into lines
+    final lines = _lyrics?.split('\n') ?? [];
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -333,6 +531,12 @@ class _LyricsScreenState extends State<LyricsScreen> {
         final isCurrentLine = index == _currentLineIndex;
         final isVerseLabel =
             lines[index].startsWith('(') && lines[index].endsWith(')');
+        final isEmpty = lines[index].trim().isEmpty;
+
+        // Handle empty lines
+        if (isEmpty) {
+          return const SizedBox(height: 16);
+        }
 
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -350,7 +554,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
                   : (isVerseLabel ? FontWeight.w600 : FontWeight.w400),
               height: 1.5,
             ),
-            textAlign: isVerseLabel ? TextAlign.left : TextAlign.left,
+            textAlign: TextAlign.center,
           ),
         );
       },

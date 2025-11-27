@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import '../models/song_model.dart';
 import '../services/audio_player_service.dart';
 
@@ -11,6 +12,9 @@ class MusicPlayerProvider extends ChangeNotifier {
   bool _isShuffle = false;
   RepeatMode _repeatMode = RepeatMode.off;
   List<Song> _playlist = [];
+  List<Song> _originalPlaylist = [];
+  List<Song> _recentlyPlayedSongs = [];
+  Map<String, int> _songPlayCounts = {};
 
   MusicPlayerProvider() {
     _initializeAudioService();
@@ -30,6 +34,13 @@ class MusicPlayerProvider extends ChangeNotifier {
       _isPlaying = playing;
       notifyListeners();
     });
+
+    // Listen to processing state for auto-next
+    _audioService.processingStateStream.listen((state) {
+      if (state == ProcessingState.completed) {
+        _handleSongCompleted();
+      }
+    });
   }
 
   Song? get currentSong => _currentSong;
@@ -39,9 +50,54 @@ class MusicPlayerProvider extends ChangeNotifier {
   RepeatMode get repeatMode => _repeatMode;
   List<Song> get playlist => _playlist;
   Duration? get duration => _audioService.duration;
+  List<Song> get recentlyPlayedSongs => List.unmodifiable(_recentlyPlayedSongs);
+
+  List<Song> get recommendedSongs {
+    // Recommend by most played
+    final allSongs = [..._originalPlaylist];
+    allSongs.sort((a, b) {
+      final aCount = _songPlayCounts[a.id] ?? 0;
+      final bCount = _songPlayCounts[b.id] ?? 0;
+      return bCount.compareTo(aCount);
+    });
+    return allSongs.take(10).toList();
+  }
+
+  String? get favoriteGenre {
+    final genreCounts = <String, int>{};
+    for (final song in _originalPlaylist) {
+      if (song.genre != null) {
+        genreCounts[song.genre!] =
+            (genreCounts[song.genre!] ?? 0) + (_songPlayCounts[song.id] ?? 0);
+      }
+    }
+    if (genreCounts.isEmpty) return null;
+    return genreCounts.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+  }
 
   void setPlaylist(List<Song> songs) {
-    _playlist = songs;
+    _originalPlaylist = List.from(songs);
+
+    // If shuffle is on, shuffle the new playlist but keep current song first if it exists
+    if (_isShuffle) {
+      final currentSongId = _currentSong?.id;
+      if (currentSongId != null && songs.any((s) => s.id == currentSongId)) {
+        // Current song exists in new playlist
+        final otherSongs = songs.where((s) => s.id != currentSongId).toList();
+        otherSongs.shuffle();
+        _playlist = [
+          songs.firstWhere((s) => s.id == currentSongId),
+          ...otherSongs,
+        ];
+      } else {
+        // Current song not in playlist or no current song
+        _playlist = List.from(songs);
+        _playlist.shuffle();
+      }
+    } else {
+      _playlist = List.from(songs);
+    }
+
     notifyListeners();
   }
 
@@ -49,6 +105,18 @@ class MusicPlayerProvider extends ChangeNotifier {
     try {
       _currentSong = song;
       _currentPosition = Duration.zero;
+      // Add to recently played
+      if (!_recentlyPlayedSongs.any((s) => s.id == song.id)) {
+        _recentlyPlayedSongs.insert(0, song);
+      } else {
+        _recentlyPlayedSongs.removeWhere((s) => s.id == song.id);
+        _recentlyPlayedSongs.insert(0, song);
+      }
+      if (_recentlyPlayedSongs.length > 50) {
+        _recentlyPlayedSongs = _recentlyPlayedSongs.sublist(0, 50);
+      }
+      // Increment play count
+      _songPlayCounts[song.id] = (_songPlayCounts[song.id] ?? 0) + 1;
       notifyListeners();
 
       if (song.filePath.isNotEmpty) {
@@ -64,12 +132,18 @@ class MusicPlayerProvider extends ChangeNotifier {
   }
 
   Future<void> togglePlayPause() async {
-    if (_isPlaying) {
-      await _audioService.pause();
-    } else {
-      await _audioService.resume();
+    try {
+      if (_isPlaying) {
+        await _audioService.pause();
+        _isPlaying = false;
+      } else {
+        await _audioService.resume();
+        _isPlaying = true;
+      }
+      notifyListeners();
+    } catch (e) {
+      print('Error toggling play/pause: $e');
     }
-    notifyListeners();
   }
 
   Future<void> seekTo(Duration position) async {
@@ -78,19 +152,46 @@ class MusicPlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _handleSongCompleted() {
+    // Handle what happens when song completes
+    if (_repeatMode == RepeatMode.one) {
+      // Replay current song
+      if (_currentSong != null) {
+        playSong(_currentSong!);
+      }
+    } else {
+      // Auto-play next song
+      nextSong();
+    }
+  }
+
   void nextSong() {
     if (_playlist.isEmpty || _currentSong == null) return;
 
     final currentIndex = _playlist.indexWhere((s) => s.id == _currentSong!.id);
+
     if (currentIndex < _playlist.length - 1) {
+      // Play next song
       playSong(_playlist[currentIndex + 1]);
     } else if (_repeatMode == RepeatMode.all) {
+      // Loop back to first song
       playSong(_playlist[0]);
+    } else {
+      // End of playlist, stop playing
+      _audioService.stop();
+      _isPlaying = false;
+      notifyListeners();
     }
   }
 
   void previousSong() {
     if (_playlist.isEmpty || _currentSong == null) return;
+
+    // If current position > 3 seconds, restart current song
+    if (_currentPosition.inSeconds > 3) {
+      seekTo(Duration.zero);
+      return;
+    }
 
     final currentIndex = _playlist.indexWhere((s) => s.id == _currentSong!.id);
     if (currentIndex > 0) {
@@ -100,12 +201,48 @@ class MusicPlayerProvider extends ChangeNotifier {
     }
   }
 
-  void toggleShuffle() {
+  Future<void> toggleShuffle() async {
     _isShuffle = !_isShuffle;
+
+    if (_isShuffle) {
+      // Shuffle the playlist, but keep current song at the beginning
+      if (_currentSong != null) {
+        final currentSong = _currentSong!;
+        final otherSongs = _originalPlaylist
+            .where((s) => s.id != currentSong.id)
+            .toList();
+        otherSongs.shuffle();
+
+        // Check if current song is in the original playlist
+        if (_originalPlaylist.any((s) => s.id == currentSong.id)) {
+          _playlist = [currentSong, ...otherSongs];
+        } else {
+          // Current song not in playlist (shouldn't happen, but just in case)
+          _playlist = List.from(_originalPlaylist);
+          _playlist.shuffle();
+        }
+      } else {
+        _playlist = List.from(_originalPlaylist);
+        _playlist.shuffle();
+      }
+    } else {
+      // Restore original playlist order
+      _playlist = List.from(_originalPlaylist);
+    }
+
+    print(
+      'Shuffle ${_isShuffle ? "ON" : "OFF"}: Playlist has ${_playlist.length} songs',
+    );
+    if (_currentSong != null) {
+      print(
+        'Current song: ${_currentSong!.title} at position ${_playlist.indexWhere((s) => s.id == _currentSong!.id)}',
+      );
+    }
+
     notifyListeners();
   }
 
-  void cycleRepeatMode() {
+  Future<void> cycleRepeatMode() async {
     switch (_repeatMode) {
       case RepeatMode.off:
         _repeatMode = RepeatMode.all;

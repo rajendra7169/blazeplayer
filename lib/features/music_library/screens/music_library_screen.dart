@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../player/models/song_model.dart';
 import '../../player/providers/music_player_provider.dart';
 import '../../player/screens/full_player_screen.dart';
+import '../../player/widgets/cached_artwork_widget.dart';
 
 class MusicLibraryScreen extends StatefulWidget {
   const MusicLibraryScreen({super.key});
@@ -183,22 +184,32 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
                     playerProvider.isPlaying;
 
                 return ListTile(
-                  leading: QueryArtworkWidget(
-                    id: songModel.id,
-                    type: ArtworkType.AUDIO,
-                    artworkQuality: FilterQuality.low,
-                    quality: 20,
-                    keepOldArtwork: true,
-                    nullArtworkWidget: Container(
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
                       width: 50,
                       height: 50,
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? const Color(0xFF3D3D3D)
-                            : Colors.grey[300],
-                        borderRadius: BorderRadius.circular(8),
+                      child: CachedArtworkWidget(
+                        songId: songModel.id.toString(),
+                        width: 50,
+                        height: 50,
+                        fit: BoxFit.cover,
+                        borderRadius: BorderRadius.zero,
+                        fallback: Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF3D3D3D)
+                                : Colors.grey[300],
+                          ),
+                          child: const Icon(
+                            Icons.music_note,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
                       ),
-                      child: const Icon(Icons.music_note, color: Colors.white),
                     ),
                   ),
                   title: Text(

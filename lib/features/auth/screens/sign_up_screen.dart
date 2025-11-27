@@ -94,7 +94,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
-      Navigator.of(context).pushReplacementNamed('/home');
+      Navigator.of(context).pushReplacementNamed('/music-home');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

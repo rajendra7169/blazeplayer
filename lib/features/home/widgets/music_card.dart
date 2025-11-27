@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:on_audio_query/on_audio_query.dart';
+import '../../player/widgets/cached_artwork_widget.dart';
 
-class MusicCard extends StatelessWidget {
+class MusicCard extends StatefulWidget {
   final String title;
   final String subtitle;
   final String? imagePath;
+  final int? songId;
   final VoidCallback? onTap;
   final bool isCircular;
 
@@ -12,16 +15,26 @@ class MusicCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.imagePath,
+    this.songId,
     this.onTap,
     this.isCircular = false,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  State<MusicCard> createState() => _MusicCardState();
+}
 
+class _MusicCardState extends State<MusicCard>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
         width: 140,
         margin: const EdgeInsets.only(right: 12),
@@ -33,7 +46,7 @@ class MusicCard extends StatelessWidget {
               width: 140,
               height: 140,
               decoration: BoxDecoration(
-                borderRadius: isCircular
+                borderRadius: widget.isCircular
                     ? BorderRadius.circular(70)
                     : BorderRadius.circular(12),
                 color: isDark
@@ -48,22 +61,34 @@ class MusicCard extends StatelessWidget {
                 ],
               ),
               child: ClipRRect(
-                borderRadius: isCircular
+                borderRadius: widget.isCircular
                     ? BorderRadius.circular(70)
                     : BorderRadius.circular(12),
-                child: imagePath != null
-                    ? Image.asset(imagePath!, fit: BoxFit.cover)
-                    : Icon(
-                        isCircular ? Icons.person : Icons.album,
-                        size: 60,
-                        color: isDark ? Colors.white30 : Colors.grey[600],
-                      ),
+                child: widget.songId != null
+                    ? CachedArtworkWidget(
+                        songId: widget.songId!.toString(),
+                        width: 140,
+                        height: 140,
+                        fit: BoxFit.cover,
+                        fallback: Icon(
+                          widget.isCircular ? Icons.person : Icons.album,
+                          size: 60,
+                          color: isDark ? Colors.white30 : Colors.grey[600],
+                        ),
+                      )
+                    : (widget.imagePath != null
+                          ? Image.asset(widget.imagePath!, fit: BoxFit.cover)
+                          : Icon(
+                              widget.isCircular ? Icons.person : Icons.album,
+                              size: 60,
+                              color: isDark ? Colors.white30 : Colors.grey[600],
+                            )),
               ),
             ),
             const SizedBox(height: 8),
             // Title
             Text(
-              title,
+              widget.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -75,7 +100,7 @@ class MusicCard extends StatelessWidget {
             const SizedBox(height: 2),
             // Subtitle
             Text(
-              subtitle,
+              widget.subtitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
