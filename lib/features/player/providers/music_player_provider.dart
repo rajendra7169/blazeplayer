@@ -14,7 +14,7 @@ class MusicPlayerProvider extends ChangeNotifier {
   List<Song> _playlist = [];
   List<Song> _originalPlaylist = [];
   List<Song> _recentlyPlayedSongs = [];
-  Map<String, int> _songPlayCounts = {};
+  final Map<String, int> _songPlayCounts = {};
 
   MusicPlayerProvider() {
     _initializeAudioService();

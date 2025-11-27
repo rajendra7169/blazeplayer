@@ -5,6 +5,8 @@ import '../../player/widgets/cached_artwork_widget.dart';
 import '../../player/widgets/mini_player.dart';
 
 class RecentlyPlayedScreen extends StatelessWidget {
+  const RecentlyPlayedScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -45,8 +47,7 @@ class RecentlyPlayedScreen extends StatelessWidget {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
-                        leading: song.id != null
-                            ? CachedArtworkWidget(
+                        leading: CachedArtworkWidget(
                                 songId: song.id.toString(),
                                 width: 56,
                                 height: 56,
@@ -58,13 +59,6 @@ class RecentlyPlayedScreen extends StatelessWidget {
                                       : Colors.grey[600],
                                   size: 32,
                                 ),
-                              )
-                            : Icon(
-                                Icons.music_note_rounded,
-                                color: isDark
-                                    ? Colors.white30
-                                    : Colors.grey[600],
-                                size: 32,
                               ),
                         title: Text(
                           song.title,

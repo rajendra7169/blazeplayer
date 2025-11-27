@@ -8,7 +8,6 @@ import '../widgets/category_grid.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../player/providers/music_player_provider.dart';
 import '../../player/widgets/mini_player.dart';
-import '../../music_library/screens/music_library_screen.dart';
 import '../../music_library/screens/recently_played_screen.dart';
 import '../../music_library/screens/recommended_songs_screen.dart';
 import '../../music_library/screens/all_songs_screen.dart';

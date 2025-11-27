@@ -5,6 +5,8 @@ import '../../player/widgets/cached_artwork_widget.dart';
 import '../../player/widgets/mini_player.dart';
 
 class RecommendedSongsScreen extends StatelessWidget {
+  const RecommendedSongsScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;

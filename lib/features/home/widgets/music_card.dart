@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:on_audio_query/on_audio_query.dart';
 import '../../player/widgets/cached_artwork_widget.dart';
 
 class MusicCard extends StatefulWidget {

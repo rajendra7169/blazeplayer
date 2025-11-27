@@ -6,7 +6,7 @@ import '../../player/widgets/cached_artwork_widget.dart';
 import '../../player/widgets/mini_player.dart';
 
 class AllSongsScreen extends StatefulWidget {
-  const AllSongsScreen({Key? key}) : super(key: key);
+  const AllSongsScreen({super.key});
 
   @override
   State<AllSongsScreen> createState() => _AllSongsScreenState();
