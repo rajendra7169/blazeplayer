@@ -12,6 +12,7 @@ import '../../music_library/screens/recently_played_screen.dart';
 import '../../music_library/screens/recommended_songs_screen.dart';
 import '../../music_library/screens/all_songs_screen.dart';
 import '../../../main.dart' show themeNotifier;
+import '../../search/music_search_delegate.dart';
 
 class MusicHomeScreen extends StatefulWidget {
   const MusicHomeScreen({super.key});
@@ -393,8 +394,12 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                       const SizedBox(height: 16),
                       // Search Bar
                       SearchBarWidget(
-                        onTap: () {
-                          // Navigate to search screen
+                        onTap: () async {
+                          final result = await showSearch(
+                            context: context,
+                            delegate: MusicSearchDelegate(),
+                          );
+                          // Optionally handle result
                         },
                       ),
                       const SizedBox(height: 16),

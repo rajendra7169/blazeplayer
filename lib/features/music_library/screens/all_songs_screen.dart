@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../player/providers/music_player_provider.dart';
 import '../../player/widgets/cached_artwork_widget.dart';
 import '../../player/widgets/mini_player.dart';
+import '../../player/models/song_model.dart';
 
 class AllSongsScreen extends StatefulWidget {
   const AllSongsScreen({super.key});
@@ -95,6 +96,20 @@ class _AllSongsScreenState extends State<AllSongsScreen> {
                             hintText: 'Search songs...',
                             prefixIcon: Icon(Icons.search, color: accentColor),
                             border: InputBorder.none,
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Colors.transparent,
+                                width: 0,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: accentColor,
+                                width: 2,
+                              ),
+                            ),
                             contentPadding: const EdgeInsets.symmetric(
                               vertical: 0,
                               horizontal: 12,
@@ -112,39 +127,68 @@ class _AllSongsScreenState extends State<AllSongsScreen> {
                     ),
                     const SizedBox(width: 12),
                     Container(
+                      height: 44,
+                      constraints: BoxConstraints(minWidth: 110),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 2,
+                        horizontal: 0,
+                        vertical: 0,
                       ),
                       decoration: BoxDecoration(
                         color: isDark ? Colors.white10 : Colors.grey[100],
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: accentColor, width: 1),
                       ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _sortType,
-                          dropdownColor: isDark
+                      child: Theme(
+                        data: Theme.of(context).copyWith(
+                          canvasColor: isDark
                               ? const Color(0xFF232323)
                               : Colors.white,
-                          style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black87,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          icon: Icon(Icons.arrow_drop_down, color: accentColor),
-                          items: const [
-                            DropdownMenuItem(value: 'A-Z', child: Text('A-Z')),
-                            DropdownMenuItem(
-                              value: 'Date Added',
-                              child: Text('Date Added'),
+                          highlightColor: accentColor.withOpacity(0.15),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _sortType,
+                            icon: Icon(
+                              Icons.arrow_drop_down,
+                              color: accentColor,
                             ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              _sortType = value;
-                              _applyFilter();
-                            }
-                          },
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            dropdownColor: isDark
+                                ? const Color(0xFF232323)
+                                : Colors.white,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'A-Z',
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  child: Text('A-Z'),
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Date Added',
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  child: Text('Date Added'),
+                                ),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                _sortType = value;
+                                _applyFilter();
+                              }
+                            },
+                          ),
                         ),
                       ),
                     ),
@@ -164,7 +208,7 @@ class _AllSongsScreenState extends State<AllSongsScreen> {
                         ),
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                         itemCount: _filteredSongs.length,
                         itemBuilder: (context, index) {
                           final song = _filteredSongs[index];
@@ -203,8 +247,45 @@ class _AllSongsScreenState extends State<AllSongsScreen> {
                                       : Colors.black54,
                                 ),
                               ),
-                              onTap: () {
-                                // TODO: Play song or open player
+                              onTap: () async {
+                                final playerProvider =
+                                    Provider.of<MusicPlayerProvider>(
+                                      context,
+                                      listen: false,
+                                    );
+                                playerProvider.setPlaylist(
+                                  _filteredSongs
+                                      .map(
+                                        (song) => Song(
+                                          id: song.id.toString(),
+                                          title: song.title,
+                                          artist:
+                                              song.artist ?? 'Unknown Artist',
+                                          album: song.album ?? '',
+                                          albumArt: song.id.toString(),
+                                          duration: Duration(
+                                            milliseconds: song.duration ?? 0,
+                                          ),
+                                          genre: song.genre,
+                                          filePath: song.data,
+                                        ),
+                                      )
+                                      .toList(),
+                                );
+                                await playerProvider.playSong(
+                                  Song(
+                                    id: song.id.toString(),
+                                    title: song.title,
+                                    artist: song.artist ?? 'Unknown Artist',
+                                    album: song.album ?? '',
+                                    albumArt: song.id.toString(),
+                                    duration: Duration(
+                                      milliseconds: song.duration ?? 0,
+                                    ),
+                                    genre: song.genre,
+                                    filePath: song.data,
+                                  ),
+                                );
                               },
                             ),
                           );

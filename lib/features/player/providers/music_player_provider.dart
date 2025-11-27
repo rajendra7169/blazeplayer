@@ -51,6 +51,7 @@ class MusicPlayerProvider extends ChangeNotifier {
   List<Song> get playlist => _playlist;
   Duration? get duration => _audioService.duration;
   List<Song> get recentlyPlayedSongs => List.unmodifiable(_recentlyPlayedSongs);
+  List<Song> get allSongs => List.unmodifiable(_originalPlaylist);
 
   List<Song> get recommendedSongs {
     // Recommend by most played
