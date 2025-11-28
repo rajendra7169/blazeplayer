@@ -222,7 +222,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
         backgroundColor: Colors.transparent,
         body: currentSong.albumArt != null
             ? ArtworkColorBuilder(
-                artwork: currentSong.albumArt ?? currentSong.id,
+                songId: currentSong.albumArt!,
                 builder: (dominantColor, vibrantColor) {
                   return Container(
                     decoration: BoxDecoration(
@@ -442,8 +442,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
                         height: 50,
                         child: currentSong.albumArt != null
                             ? CachedArtworkWidget(
-                                albumArt:
-                                    currentSong.albumArt ?? currentSong.id,
+                                songId: currentSong.albumArt!,
                                 width: 50,
                                 height: 50,
                                 fit: BoxFit.cover,

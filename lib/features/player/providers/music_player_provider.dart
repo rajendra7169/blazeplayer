@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:on_audio_query/on_audio_query.dart';
-import 'package:audiotagger/audiotagger.dart';
-import 'package:audiotagger/models/tag.dart';
 import '../models/song_model.dart';
 import '../services/audio_player_service.dart';
 
@@ -192,49 +190,16 @@ class MusicPlayerProvider extends ChangeNotifier {
     }
   }
 
-  Future<Song> _reloadSongFromFile(Song song) async {
-    final tagger = Audiotagger();
-    Tag? tags;
-    try {
-      tags = await tagger.readTags(path: song.filePath);
-    } catch (e) {
-      tags = null;
-    }
-    return Song(
-      id: song.id,
-      title: tags?.title ?? song.title,
-      artist: tags?.artist ?? song.artist,
-      album: tags?.album ?? song.album,
-      albumArt: tags?.artwork ?? song.albumArt,
-      duration: song.duration,
-      filePath: song.filePath,
-      playCount: song.playCount,
-      genre: song.genre,
-      dateAdded: song.dateAdded,
-    );
-  }
-
   Future<void> playSong(Song song) async {
     try {
-      final reloadedSong = await _reloadSongFromFile(song);
-      _currentSong = reloadedSong;
+      _currentSong = song;
       _currentPosition = Duration.zero;
-      // Update in playlist and originalPlaylist
-      _playlist = _playlist
-          .map((s) => s.id == reloadedSong.id ? reloadedSong : s)
-          .toList();
-      _originalPlaylist = _originalPlaylist
-          .map((s) => s.id == reloadedSong.id ? reloadedSong : s)
-          .toList();
       // Add to recently played
       if (!_recentlyPlayedSongs.any((s) => s.id == song.id)) {
-        _recentlyPlayedSongs.insert(0, reloadedSong);
+        _recentlyPlayedSongs.insert(0, song);
       } else {
-        _recentlyPlayedSongs = _recentlyPlayedSongs
-            .map((s) => s.id == reloadedSong.id ? reloadedSong : s)
-            .toList();
         _recentlyPlayedSongs.removeWhere((s) => s.id == song.id);
-        _recentlyPlayedSongs.insert(0, reloadedSong);
+        _recentlyPlayedSongs.insert(0, song);
       }
       if (_recentlyPlayedSongs.length > 50) {
         _recentlyPlayedSongs = _recentlyPlayedSongs.sublist(0, 50);
@@ -242,7 +207,6 @@ class MusicPlayerProvider extends ChangeNotifier {
       // Increment play count
       _songPlayCounts[song.id] = (_songPlayCounts[song.id] ?? 0) + 1;
       await saveRecentlyPlayedSongs();
-      await saveSongsToStorage();
       notifyListeners();
 
       if (song.filePath.isNotEmpty) {
@@ -294,12 +258,17 @@ class MusicPlayerProvider extends ChangeNotifier {
 
   void nextSong() {
     if (_playlist.isEmpty || _currentSong == null) return;
+
     final currentIndex = _playlist.indexWhere((s) => s.id == _currentSong!.id);
+
     if (currentIndex < _playlist.length - 1) {
+      // Play next song
       playSong(_playlist[currentIndex + 1]);
     } else if (_repeatMode == RepeatMode.all) {
+      // Loop back to first song
       playSong(_playlist[0]);
     } else {
+      // End of playlist, stop playing
       _audioService.stop();
       _isPlaying = false;
       notifyListeners();
@@ -308,10 +277,13 @@ class MusicPlayerProvider extends ChangeNotifier {
 
   void previousSong() {
     if (_playlist.isEmpty || _currentSong == null) return;
+
+    // If current position > 3 seconds, restart current song
     if (_currentPosition.inSeconds > 3) {
       seekTo(Duration.zero);
       return;
     }
+
     final currentIndex = _playlist.indexWhere((s) => s.id == _currentSong!.id);
     if (currentIndex > 0) {
       playSong(_playlist[currentIndex - 1]);
@@ -384,132 +356,23 @@ class MusicPlayerProvider extends ChangeNotifier {
 
   Future<void> fetchLocalSongs() async {
     final songModels = await _audioQuery.querySongs();
-    final tagger = Audiotagger();
-    List<Song> loadedSongs = [];
-    for (var song in songModels) {
-      // Read tags from file
-      Tag? tags;
-      try {
-        tags = await tagger.readTags(path: song.data);
-      } catch (e) {
-        tags = null;
-      }
-      loadedSongs.add(
-        Song(
-          id: song.id.toString(),
-          title: tags?.title ?? song.title,
-          artist: tags?.artist ?? (song.artist ?? 'Unknown Artist'),
-          album: tags?.album ?? (song.album ?? ''),
-          albumArt: tags?.artwork ?? song.id.toString(),
-          duration: Duration(milliseconds: song.duration ?? 0),
-          genre: song.genre,
-          filePath: song.data,
-          dateAdded: song.dateAdded ?? 0,
-        ),
-      );
-    }
-    _originalPlaylist = loadedSongs;
-    _playlist = List.from(_originalPlaylist);
-    await saveSongsToStorage();
-    notifyListeners();
-  }
-
-  // Update current song info from metadata map and persist everywhere
-  Future<void> updateCurrentSongInfo(Map<String, String> info) async {
-    if (_currentSong == null) return;
-    final updatedSong = Song(
-      id: _currentSong!.id,
-      title: info['title'] ?? _currentSong!.title,
-      artist: info['artist'] ?? _currentSong!.artist,
-      album: info['album'] ?? _currentSong!.album,
-      albumArt: info['albumArt'] ?? _currentSong!.albumArt,
-      duration: _currentSong!.duration,
-      filePath: _currentSong!.filePath,
-      playCount: _currentSong!.playCount,
-      genre: _currentSong!.genre,
-      dateAdded: _currentSong!.dateAdded,
-    );
-    _currentSong = updatedSong;
-    // Write tags to audio file
-    final tagger = Audiotagger();
-    final tag = Tag(
-      title: updatedSong.title,
-      artist: updatedSong.artist,
-      album: updatedSong.album,
-      artwork: updatedSong.albumArt,
-    );
-    try {
-      await tagger.writeTags(path: updatedSong.filePath, tag: tag);
-    } catch (e) {
-      print('Error writing tags: $e');
-    }
-    // Update in playlist and originalPlaylist
-    _playlist = _playlist
-        .map((s) => s.id == updatedSong.id ? updatedSong : s)
-        .toList();
-    _originalPlaylist = _originalPlaylist
-        .map((s) => s.id == updatedSong.id ? updatedSong : s)
-        .toList();
-    // Update in recently played
-    _recentlyPlayedSongs = _recentlyPlayedSongs
-        .map((s) => s.id == updatedSong.id ? updatedSong : s)
-        .toList();
-    await saveSongsToStorage();
-    await saveRecentlyPlayedSongs();
-    notifyListeners();
-  }
-
-  // Save all songs to SharedPreferences
-  Future<void> saveSongsToStorage() async {
-    final prefs = await SharedPreferences.getInstance();
-    final songJsonList = _originalPlaylist
+    _originalPlaylist = songModels
         .map(
-          (song) => {
-            'id': song.id,
-            'title': song.title,
-            'artist': song.artist,
-            'album': song.album,
-            'albumArt': song.albumArt,
-            'duration': song.duration.inMilliseconds,
-            'filePath': song.filePath,
-            'playCount': song.playCount,
-            'genre': song.genre,
-            'dateAdded': song.dateAdded,
-          },
+          (song) => Song(
+            id: song.id.toString(),
+            title: song.title,
+            artist: song.artist ?? 'Unknown Artist',
+            album: song.album ?? '',
+            albumArt: song.id.toString(),
+            duration: Duration(milliseconds: song.duration ?? 0),
+            genre: song.genre,
+            filePath: song.data,
+            dateAdded: song.dateAdded ?? 0,
+          ),
         )
         .toList();
-    await prefs.setString('all_songs', jsonEncode(songJsonList));
-  }
-
-  // Restore all songs from SharedPreferences
-  Future<void> restoreSongsFromStorage() async {
-    final prefs = await SharedPreferences.getInstance();
-    final songListString = prefs.getString('all_songs');
-    if (songListString != null && songListString.isNotEmpty) {
-      try {
-        final List<dynamic> songList = jsonDecode(songListString);
-        _originalPlaylist = songList
-            .map(
-              (json) => Song(
-                id: json['id'],
-                title: json['title'],
-                artist: json['artist'],
-                album: json['album'],
-                albumArt: json['albumArt'],
-                duration: Duration(milliseconds: json['duration'] ?? 0),
-                filePath: json['filePath'],
-                playCount: json['playCount'] ?? 0,
-                genre: json['genre'],
-                dateAdded: json['dateAdded'] ?? 0,
-              ),
-            )
-            .toList();
-        _playlist = List.from(_originalPlaylist);
-      } catch (e) {
-        // ignore error
-      }
-      notifyListeners();
-    }
+    _playlist = List.from(_originalPlaylist);
+    notifyListeners();
   }
 
   @override

@@ -1,9 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 
 class CachedArtworkWidget extends StatefulWidget {
-  final String albumArt; // Accepts albumArt string (URL, file path, or songId)
+  final String songId;
   final double? width;
   final double? height;
   final BoxFit fit;
@@ -12,7 +11,7 @@ class CachedArtworkWidget extends StatefulWidget {
 
   const CachedArtworkWidget({
     super.key,
-    required this.albumArt,
+    required this.songId,
     this.width,
     this.height,
     this.fit = BoxFit.cover,
@@ -38,60 +37,39 @@ class _CachedArtworkWidgetState extends State<CachedArtworkWidget> {
   @override
   void didUpdateWidget(CachedArtworkWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.albumArt != widget.albumArt) {
+    if (oldWidget.songId != widget.songId) {
       _loadArtwork();
     }
   }
 
   Future<void> _loadArtwork() async {
-    final art = widget.albumArt;
-    if (art.isEmpty) {
+    // Check cache first
+    if (_imageCache.containsKey(widget.songId)) {
       setState(() {
-        _imageProvider = null;
+        _imageProvider = _imageCache[widget.songId];
         _isLoading = false;
       });
       return;
     }
-    // Network image
-    if (art.startsWith('http')) {
-      setState(() {
-        _imageProvider = NetworkImage(art);
-        _isLoading = false;
-      });
-      return;
-    }
-    // Local file
-    if (art.startsWith('/') || art.contains(':\\')) {
-      setState(() {
-        _imageProvider = FileImage(File(art));
-        _isLoading = false;
-      });
-      return;
-    }
-    // Fallback to songId artwork
-    if (_imageCache.containsKey(art)) {
-      setState(() {
-        _imageProvider = _imageCache[art];
-        _isLoading = false;
-      });
-      return;
-    }
+
     try {
       final audioQuery = OnAudioQuery();
       final artwork = await audioQuery.queryArtwork(
-        int.tryParse(art) ?? 0,
+        int.parse(widget.songId),
         ArtworkType.AUDIO,
         quality: 50,
         size: 400,
       );
+
       if (artwork != null && mounted) {
         _imageProvider = MemoryImage(artwork);
-        _imageCache[art] = _imageProvider;
+        _imageCache[widget.songId] = _imageProvider;
       }
     } catch (e) {
       _imageProvider = null;
-      _imageCache[art] = null;
+      _imageCache[widget.songId] = null;
     }
+
     if (mounted) {
       setState(() {
         _isLoading = false;
@@ -104,21 +82,24 @@ class _CachedArtworkWidgetState extends State<CachedArtworkWidget> {
     if (_isLoading || _imageProvider == null) {
       return widget.fallback;
     }
+
     Widget imageWidget = Image(
       image: _imageProvider!,
       fit: widget.fit,
       width: widget.width,
       height: widget.height,
-      gaplessPlayback: true,
+      gaplessPlayback: true, // Prevents blinking
       filterQuality: FilterQuality.low,
       errorBuilder: (context, error, stackTrace) => widget.fallback,
     );
+
     if (widget.borderRadius != null) {
       imageWidget = ClipRRect(
         borderRadius: widget.borderRadius!,
         child: imageWidget,
       );
     }
+
     return imageWidget;
   }
 }

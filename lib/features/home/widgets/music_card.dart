@@ -6,7 +6,6 @@ class MusicCard extends StatefulWidget {
   final String subtitle;
   final String? imagePath;
   final int? songId;
-  final String? albumArt; // <-- Add this line
   final VoidCallback? onTap;
   final bool isCircular;
 
@@ -16,7 +15,6 @@ class MusicCard extends StatefulWidget {
     required this.subtitle,
     this.imagePath,
     this.songId,
-    this.albumArt, // <-- Add this line
     this.onTap,
     this.isCircular = false,
   });
@@ -65,9 +63,9 @@ class _MusicCardState extends State<MusicCard>
                 borderRadius: widget.isCircular
                     ? BorderRadius.circular(70)
                     : BorderRadius.circular(12),
-                child: widget.albumArt != null && widget.albumArt!.isNotEmpty
+                child: widget.songId != null
                     ? CachedArtworkWidget(
-                        albumArt: widget.albumArt!,
+                        songId: widget.songId!.toString(),
                         width: 140,
                         height: 140,
                         fit: BoxFit.cover,
@@ -77,34 +75,13 @@ class _MusicCardState extends State<MusicCard>
                           color: isDark ? Colors.white30 : Colors.grey[600],
                         ),
                       )
-                    : (widget.songId != null
-                          ? CachedArtworkWidget(
-                              albumArt: widget.songId!.toString(),
-                              width: 140,
-                              height: 140,
-                              fit: BoxFit.cover,
-                              fallback: Icon(
-                                widget.isCircular ? Icons.person : Icons.album,
-                                size: 60,
-                                color: isDark
-                                    ? Colors.white30
-                                    : Colors.grey[600],
-                              ),
-                            )
-                          : (widget.imagePath != null
-                                ? Image.asset(
-                                    widget.imagePath!,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Icon(
-                                    widget.isCircular
-                                        ? Icons.person
-                                        : Icons.album,
-                                    size: 60,
-                                    color: isDark
-                                        ? Colors.white30
-                                        : Colors.grey[600],
-                                  ))),
+                    : (widget.imagePath != null
+                          ? Image.asset(widget.imagePath!, fit: BoxFit.cover)
+                          : Icon(
+                              widget.isCircular ? Icons.person : Icons.album,
+                              size: 60,
+                              color: isDark ? Colors.white30 : Colors.grey[600],
+                            )),
               ),
             ),
             const SizedBox(height: 8),

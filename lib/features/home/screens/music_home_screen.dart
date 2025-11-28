@@ -465,7 +465,6 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                                     title: song.title,
                                     subtitle: song.artist,
                                     songId: int.tryParse(song.id),
-                                    albumArt: song.albumArt ?? song.id,
                                     onTap: () {
                                       playerProvider.playSong(song);
                                     },
@@ -524,7 +523,6 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                                   title: song.title,
                                   subtitle: song.artist,
                                   songId: int.tryParse(song.id),
-                                  albumArt: song.albumArt ?? song.id,
                                   onTap: () {
                                     playerProvider.playSong(song);
                                   },

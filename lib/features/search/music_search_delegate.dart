@@ -128,7 +128,7 @@ class MusicSearchDelegate extends SearchDelegate {
                       child: Column(
                         children: [
                           CachedArtworkWidget(
-                            albumArt: song.albumArt ?? song.id,
+                            songId: song.id,
                             width: 64,
                             height: 64,
                             fit: BoxFit.cover,
@@ -233,7 +233,7 @@ class MusicSearchDelegate extends SearchDelegate {
           ...songResults.map(
             (song) => ListTile(
               leading: CachedArtworkWidget(
-                albumArt: song.albumArt ?? song.id,
+                songId: song.id,
                 width: 40,
                 height: 40,
                 fit: BoxFit.cover,

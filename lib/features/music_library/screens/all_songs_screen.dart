@@ -217,7 +217,7 @@ class _AllSongsScreenState extends State<AllSongsScreen> {
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: ListTile(
                                   leading: CachedArtworkWidget(
-                                    albumArt: song.albumArt ?? song.id,
+                                    songId: song.id,
                                     width: 56,
                                     height: 56,
                                     fit: BoxFit.cover,
@@ -310,7 +310,7 @@ class _AllSongsScreenState extends State<AllSongsScreen> {
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: ListTile(
                                   leading: CachedArtworkWidget(
-                                    albumArt: song.albumArt ?? song.id,
+                                    songId: song.id,
                                     width: 56,
                                     height: 56,
                                     fit: BoxFit.cover,
