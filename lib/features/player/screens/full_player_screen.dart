@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -5,6 +6,10 @@ import '../providers/music_player_provider.dart';
 import '../widgets/cached_artwork_widget.dart';
 import '../widgets/artwork_color_builder.dart';
 import 'lyrics_screen.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:audiotagger/audiotagger.dart';
+import 'package:audiotagger/models/tag.dart';
 
 class FullPlayerScreen extends StatefulWidget {
   const FullPlayerScreen({super.key});
@@ -17,7 +22,6 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
   bool _isDragging = false;
   double _dragPosition = 0.0;
   double _verticalDragStart = 0.0;
-  double _horizontalDragStart = 0.0;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +84,7 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
         color: Colors.transparent,
         child: currentSong.albumArt != null
             ? ArtworkColorBuilder(
-                songId: currentSong.albumArt!,
+                artwork: currentSong.albumArt ?? currentSong.id,
                 builder: (dominantColor, vibrantColor) {
                   return Container(
                     decoration: BoxDecoration(
@@ -209,13 +213,111 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                               ),
                             ],
                           ),
-                          IconButton(
-                            onPressed: () {},
+                          // PopupMenuButton for more options
+                          PopupMenuButton<String>(
                             icon: Icon(
                               Icons.more_horiz_rounded,
                               color: isDark ? Colors.white : Colors.white,
                               size: 28,
                             ),
+                            onSelected: (value) async {
+                              if (value == 'update_info') {
+                                // Show loading dialog
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (context) => const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                                // Fetch metadata from MusicBrainz
+                                final updatedInfo = await _fetchSongInfo(
+                                  currentSong.title,
+                                );
+                                String? localArtworkPath;
+                                // Download artwork if available and is a URL
+                                if (updatedInfo != null &&
+                                    updatedInfo['albumArt'] != null &&
+                                    updatedInfo['albumArt']!.startsWith(
+                                      'http',
+                                    )) {
+                                  try {
+                                    final response = await http.get(
+                                      Uri.parse(updatedInfo['albumArt']!),
+                                    );
+                                    if (response.statusCode == 200) {
+                                      final tempDir = Directory.systemTemp;
+                                      final fileName =
+                                          'artwork_${currentSong.id}.jpg';
+                                      final file = File(
+                                        '${tempDir.path}/$fileName',
+                                      );
+                                      await file.writeAsBytes(
+                                        response.bodyBytes,
+                                      );
+                                      localArtworkPath = file.path;
+                                    }
+                                  } catch (e) {
+                                    localArtworkPath = null;
+                                  }
+                                }
+                                Navigator.of(
+                                  context,
+                                ).pop(); // Close loading dialog
+                                if (updatedInfo != null) {
+                                  // Update provider and UI
+                                  playerProvider.updateCurrentSongInfo({
+                                    'title':
+                                        updatedInfo['title'] ??
+                                        currentSong.title,
+                                    'artist':
+                                        updatedInfo['artist'] ??
+                                        currentSong.artist,
+                                    'album':
+                                        updatedInfo['album'] ??
+                                        currentSong.album,
+                                    'albumArt':
+                                        localArtworkPath ??
+                                        updatedInfo['albumArt'] ??
+                                        currentSong.albumArt,
+                                  });
+                                  // Write tags to audio file
+                                  final tagger = Audiotagger();
+                                  final tag = Tag(
+                                    title: updatedInfo['title'],
+                                    artist: updatedInfo['artist'],
+                                    album: updatedInfo['album'],
+                                    artwork:
+                                        localArtworkPath ??
+                                        updatedInfo['albumArt'], // Use local file if available
+                                  );
+                                  await tagger.writeTags(
+                                    path: currentSong
+                                        .filePath, // Make sure your song model has filePath
+                                    tag: tag,
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Song info updated and saved to file!',
+                                      ),
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('No info found.'),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'update_info',
+                                child: Text('Update Song Info'),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -227,9 +329,6 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 40),
                       child: GestureDetector(
-                        onHorizontalDragStart: (details) {
-                          _horizontalDragStart = details.globalPosition.dx;
-                        },
                         onHorizontalDragEnd: (details) {
                           final velocity = details.primaryVelocity ?? 0;
 
@@ -260,50 +359,52 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(20),
-                                  child: currentSong.albumArt != null
-                                      ? CachedArtworkWidget(
-                                          songId: currentSong.albumArt!,
-                                          fit: BoxFit.cover,
-                                          borderRadius: BorderRadius.zero,
-                                          fallback: Container(
-                                            decoration: BoxDecoration(
-                                              gradient: LinearGradient(
-                                                colors: [
-                                                  const Color(
-                                                    0xFFFFA726,
-                                                  ).withOpacity(0.7),
-                                                  const Color(
-                                                    0xFFFF7043,
-                                                  ).withOpacity(0.7),
-                                                ],
-                                              ),
-                                            ),
-                                            child: const Icon(
-                                              Icons.music_note_rounded,
-                                              color: Colors.white,
-                                              size: 120,
-                                            ),
-                                          ),
-                                        )
-                                      : Container(
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              colors: [
-                                                const Color(
-                                                  0xFFFFA726,
-                                                ).withOpacity(0.7),
-                                                const Color(
-                                                  0xFFFF7043,
-                                                ).withOpacity(0.7),
-                                              ],
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.music_note_rounded,
-                                            color: Colors.white,
-                                            size: 120,
-                                          ),
-                                        ),
+                                  child:
+                                      currentSong.albumArt != null &&
+                                          currentSong.albumArt!.isNotEmpty
+                                      ? (currentSong.albumArt!.startsWith(
+                                              'http',
+                                            )
+                                            ? Image.network(
+                                                currentSong.albumArt!,
+                                                fit: BoxFit.cover,
+                                                errorBuilder:
+                                                    (
+                                                      context,
+                                                      error,
+                                                      stackTrace,
+                                                    ) => _fallbackArtwork(),
+                                              )
+                                            : (currentSong.albumArt!.startsWith(
+                                                        '/',
+                                                      ) ||
+                                                      currentSong.albumArt!
+                                                          .contains(':\\')
+                                                  ? Image.file(
+                                                      File(
+                                                        currentSong.albumArt!,
+                                                      ),
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder:
+                                                          (
+                                                            context,
+                                                            error,
+                                                            stackTrace,
+                                                          ) =>
+                                                              _fallbackArtwork(),
+                                                    )
+                                                  : CachedArtworkWidget(
+                                                      albumArt:
+                                                          currentSong
+                                                              .albumArt ??
+                                                          currentSong.id,
+                                                      fit: BoxFit.cover,
+                                                      borderRadius:
+                                                          BorderRadius.zero,
+                                                      fallback:
+                                                          _fallbackArtwork(),
+                                                    )))
+                                      : _fallbackArtwork(),
                                 ),
                               ),
                             ),
@@ -681,5 +782,66 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
     final minutes = twoDigits(duration.inMinutes.remainder(60));
     final seconds = twoDigits(duration.inSeconds.remainder(60));
     return '$minutes:$seconds';
+  }
+
+  // Add this method to _FullPlayerScreenState
+  Future<Map<String, String>?> _fetchSongInfo(String title) async {
+    try {
+      final uri = Uri.parse(
+        'https://musicbrainz.org/ws/2/recording/?query=${Uri.encodeComponent(title)}&fmt=json',
+      );
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['recordings'] != null && data['recordings'].isNotEmpty) {
+          final rec = data['recordings'][0];
+          final songTitle = rec['title'] ?? title;
+          final artist =
+              (rec['artist-credit'] != null && rec['artist-credit'].isNotEmpty)
+              ? rec['artist-credit'][0]['name']
+              : '';
+          final album = (rec['releases'] != null && rec['releases'].isNotEmpty)
+              ? rec['releases'][0]['title']
+              : '';
+          // MusicBrainz does not provide direct artwork, but you can use Cover Art Archive
+          final releaseId =
+              (rec['releases'] != null && rec['releases'].isNotEmpty)
+              ? rec['releases'][0]['id']
+              : null;
+          String? albumArt;
+          if (releaseId != null) {
+            albumArt =
+                'https://coverartarchive.org/release/$releaseId/front-250';
+          }
+          return {
+            'title': songTitle,
+            'artist': artist,
+            'album': album,
+            'albumArt': albumArt ?? '',
+          };
+        }
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Widget _fallbackArtwork() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFFFA726).withOpacity(0.7),
+            const Color(0xFFFF7043).withOpacity(0.7),
+          ],
+        ),
+      ),
+      child: const Icon(
+        Icons.music_note_rounded,
+        color: Colors.white,
+        size: 120,
+      ),
+    );
   }
 }

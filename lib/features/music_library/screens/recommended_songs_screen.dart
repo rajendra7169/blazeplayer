@@ -48,7 +48,7 @@ class RecommendedSongsScreen extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
                         leading: CachedArtworkWidget(
-                          songId: song.id.toString(),
+                          albumArt: song.albumArt ?? song.id,
                           width: 56,
                           height: 56,
                           fit: BoxFit.cover,

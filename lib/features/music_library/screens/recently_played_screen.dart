@@ -48,18 +48,16 @@ class RecentlyPlayedScreen extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
                         leading: CachedArtworkWidget(
-                                songId: song.id.toString(),
-                                width: 56,
-                                height: 56,
-                                fit: BoxFit.cover,
-                                fallback: Icon(
-                                  Icons.music_note_rounded,
-                                  color: isDark
-                                      ? Colors.white30
-                                      : Colors.grey[600],
-                                  size: 32,
-                                ),
-                              ),
+                          albumArt: song.albumArt ?? song.id,
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                          fallback: Icon(
+                            Icons.music_note_rounded,
+                            color: isDark ? Colors.white30 : Colors.grey[600],
+                            size: 32,
+                          ),
+                        ),
                         title: Text(
                           song.title,
                           maxLines: 1,

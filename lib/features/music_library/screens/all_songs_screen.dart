@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 import '../../player/providers/music_player_provider.dart';
 import '../../player/widgets/cached_artwork_widget.dart';
@@ -14,30 +13,26 @@ class AllSongsScreen extends StatefulWidget {
 }
 
 class _AllSongsScreenState extends State<AllSongsScreen> {
-  final OnAudioQuery _audioQuery = OnAudioQuery();
-  List<SongModel> _songs = [];
-  List<SongModel> _filteredSongs = [];
-  bool _loading = true;
   String _searchQuery = '';
   String _sortType = 'A-Z';
+  List<Song> _filteredSongs = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchSongs();
-  }
-
-  Future<void> _fetchSongs() async {
-    final songs = await _audioQuery.querySongs();
-    setState(() {
-      _songs = songs;
-      _applyFilter();
-      _loading = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final playerProvider = Provider.of<MusicPlayerProvider>(
+        context,
+        listen: false,
+      );
+      if (playerProvider.allSongs.isNotEmpty) {
+        _applyFilter(playerProvider.allSongs);
+      }
     });
   }
 
-  void _applyFilter() {
-    List<SongModel> filtered = _songs;
+  void _applyFilter(List<Song> songs) {
+    List<Song> filtered = List<Song>.from(songs); // Make a mutable copy
     if (_searchQuery.isNotEmpty) {
       filtered = filtered
           .where(
@@ -49,7 +44,7 @@ class _AllSongsScreenState extends State<AllSongsScreen> {
     if (_sortType == 'A-Z') {
       filtered.sort((a, b) => a.title.compareTo(b.title));
     } else if (_sortType == 'Date Added') {
-      filtered.sort((a, b) => (b.dateAdded ?? 0).compareTo(a.dateAdded ?? 0));
+      filtered.sort((a, b) => (b.dateAdded).compareTo(a.dateAdded));
     }
     setState(() {
       _filteredSongs = filtered;
@@ -76,223 +71,321 @@ class _AllSongsScreenState extends State<AllSongsScreen> {
       ),
       body: Stack(
         children: [
-          Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white10 : Colors.grey[100],
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Search songs...',
-                            prefixIcon: Icon(Icons.search, color: accentColor),
-                            border: InputBorder.none,
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: Colors.transparent,
-                                width: 0,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: accentColor,
-                                width: 2,
-                              ),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 0,
-                              horizontal: 12,
-                            ),
-                          ),
-                          style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                          onChanged: (value) {
-                            _searchQuery = value;
-                            _applyFilter();
-                          },
-                        ),
-                      ),
+          Consumer<MusicPlayerProvider>(
+            builder: (context, playerProvider, _) {
+              final songs = playerProvider.allSongs;
+              if (songs.isEmpty) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              // Remove setState from build
+              // if (_filteredSongs.isEmpty && songs.isNotEmpty) {
+              //   _applyFilter(songs);
+              // }
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
-                    const SizedBox(width: 12),
-                    Container(
-                      height: 44,
-                      constraints: BoxConstraints(minWidth: 110),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 0,
-                        vertical: 0,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white10 : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Theme(
-                        data: Theme.of(context).copyWith(
-                          canvasColor: isDark
-                              ? const Color(0xFF232323)
-                              : Colors.white,
-                          highlightColor: accentColor.withOpacity(0.15),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _sortType,
-                            icon: Icon(
-                              Icons.arrow_drop_down,
-                              color: accentColor,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white10 : Colors.grey[100],
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            style: TextStyle(
-                              color: isDark ? Colors.white : Colors.black87,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            dropdownColor: isDark
-                                ? const Color(0xFF232323)
-                                : Colors.white,
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'A-Z',
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
+                            child: TextField(
+                              decoration: InputDecoration(
+                                hintText: 'Search songs...',
+                                prefixIcon: Icon(
+                                  Icons.search,
+                                  color: accentColor,
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: Colors.transparent,
+                                    width: 0,
                                   ),
-                                  child: Text('A-Z'),
                                 ),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Date Added',
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: accentColor,
+                                    width: 2,
                                   ),
-                                  child: Text('Date Added'),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 0,
+                                  horizontal: 12,
                                 ),
                               ),
-                            ],
-                            onChanged: (value) {
-                              if (value != null) {
-                                _sortType = value;
-                                _applyFilter();
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _filteredSongs.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No songs found.',
-                          style: TextStyle(
-                            color: isDark ? Colors.white70 : Colors.black54,
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                        itemCount: _filteredSongs.length,
-                        itemBuilder: (context, index) {
-                          final song = _filteredSongs[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: ListTile(
-                              leading: CachedArtworkWidget(
-                                songId: song.id.toString(),
-                                width: 56,
-                                height: 56,
-                                fit: BoxFit.cover,
-                                fallback: Icon(
-                                  Icons.music_note_rounded,
-                                  color: isDark
-                                      ? Colors.white30
-                                      : Colors.grey[600],
-                                  size: 32,
-                                ),
+                              style: TextStyle(
+                                color: isDark ? Colors.white : Colors.black87,
                               ),
-                              title: Text(
-                                song.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark ? Colors.white : Colors.black87,
-                                ),
-                              ),
-                              subtitle: Text(
-                                song.artist ?? 'Unknown Artist',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: isDark
-                                      ? Colors.white60
-                                      : Colors.black54,
-                                ),
-                              ),
-                              onTap: () async {
-                                final playerProvider =
-                                    Provider.of<MusicPlayerProvider>(
-                                      context,
-                                      listen: false,
-                                    );
-                                playerProvider.setPlaylist(
-                                  _filteredSongs
-                                      .map(
-                                        (song) => Song(
-                                          id: song.id.toString(),
-                                          title: song.title,
-                                          artist:
-                                              song.artist ?? 'Unknown Artist',
-                                          album: song.album ?? '',
-                                          albumArt: song.id.toString(),
-                                          duration: Duration(
-                                            milliseconds: song.duration ?? 0,
-                                          ),
-                                          genre: song.genre,
-                                          filePath: song.data,
-                                        ),
-                                      )
-                                      .toList(),
-                                );
-                                await playerProvider.playSong(
-                                  Song(
-                                    id: song.id.toString(),
-                                    title: song.title,
-                                    artist: song.artist ?? 'Unknown Artist',
-                                    album: song.album ?? '',
-                                    albumArt: song.id.toString(),
-                                    duration: Duration(
-                                      milliseconds: song.duration ?? 0,
-                                    ),
-                                    genre: song.genre,
-                                    filePath: song.data,
-                                  ),
-                                );
+                              onChanged: (value) {
+                                _searchQuery = value;
+                                _applyFilter(songs);
                               },
                             ),
-                          );
-                        },
-                      ),
-              ),
-            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          height: 44,
+                          constraints: BoxConstraints(minWidth: 110),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 0,
+                            vertical: 0,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white10 : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Theme(
+                            data: Theme.of(context).copyWith(
+                              canvasColor: isDark
+                                  ? const Color(0xFF232323)
+                                  : Colors.white,
+                              highlightColor: accentColor.withOpacity(0.15),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _sortType,
+                                icon: Icon(
+                                  Icons.arrow_drop_down,
+                                  color: accentColor,
+                                ),
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : Colors.black87,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                dropdownColor: isDark
+                                    ? const Color(0xFF232323)
+                                    : Colors.white,
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'A-Z',
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      child: Text('A-Z'),
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Date Added',
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      child: Text('Date Added'),
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    _sortType = value;
+                                    _applyFilter(songs);
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: (_filteredSongs.isEmpty && songs.isNotEmpty)
+                        ? ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                            itemCount: songs.length,
+                            itemBuilder: (context, index) {
+                              final song =
+                                  (_filteredSongs.isEmpty && songs.isNotEmpty)
+                                  ? songs[index]
+                                  : _filteredSongs[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: ListTile(
+                                  leading: CachedArtworkWidget(
+                                    albumArt: song.albumArt ?? song.id,
+                                    width: 56,
+                                    height: 56,
+                                    fit: BoxFit.cover,
+                                    fallback: Icon(
+                                      Icons.music_note_rounded,
+                                      color: isDark
+                                          ? Colors.white30
+                                          : Colors.grey[600],
+                                      size: 32,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    song.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    song.artist,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white60
+                                          : Colors.black54,
+                                    ),
+                                  ),
+                                  onTap: () async {
+                                    final playerProvider =
+                                        Provider.of<MusicPlayerProvider>(
+                                          context,
+                                          listen: false,
+                                        );
+                                    playerProvider.setPlaylist(
+                                      ((_filteredSongs.isEmpty &&
+                                                  songs.isNotEmpty)
+                                              ? songs
+                                              : _filteredSongs)
+                                          .map(
+                                            (song) => Song(
+                                              id: song.id,
+                                              title: song.title,
+                                              artist: song.artist,
+                                              album: song.album,
+                                              albumArt: song.albumArt,
+                                              duration: song.duration,
+                                              genre: song.genre,
+                                              filePath: song.filePath,
+                                            ),
+                                          )
+                                          .toList(),
+                                    );
+                                    await playerProvider.playSong(
+                                      Song(
+                                        id: song.id,
+                                        title: song.title,
+                                        artist: song.artist,
+                                        album: song.album,
+                                        albumArt: song.albumArt,
+                                        duration: song.duration,
+                                        genre: song.genre,
+                                        filePath: song.filePath,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          )
+                        : _filteredSongs.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No songs found.',
+                              style: TextStyle(
+                                color: isDark ? Colors.white70 : Colors.black54,
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                            itemCount: _filteredSongs.length,
+                            itemBuilder: (context, index) {
+                              final song = _filteredSongs[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: ListTile(
+                                  leading: CachedArtworkWidget(
+                                    albumArt: song.albumArt ?? song.id,
+                                    width: 56,
+                                    height: 56,
+                                    fit: BoxFit.cover,
+                                    fallback: Icon(
+                                      Icons.music_note_rounded,
+                                      color: isDark
+                                          ? Colors.white30
+                                          : Colors.grey[600],
+                                      size: 32,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    song.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    song.artist,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white60
+                                          : Colors.black54,
+                                    ),
+                                  ),
+                                  onTap: () async {
+                                    final playerProvider =
+                                        Provider.of<MusicPlayerProvider>(
+                                          context,
+                                          listen: false,
+                                        );
+                                    playerProvider.setPlaylist(
+                                      _filteredSongs
+                                          .map(
+                                            (song) => Song(
+                                              id: song.id,
+                                              title: song.title,
+                                              artist: song.artist,
+                                              album: song.album,
+                                              albumArt: song.albumArt,
+                                              duration: song.duration,
+                                              genre: song.genre,
+                                              filePath: song.filePath,
+                                            ),
+                                          )
+                                          .toList(),
+                                    );
+                                    await playerProvider.playSong(
+                                      Song(
+                                        id: song.id,
+                                        title: song.title,
+                                        artist: song.artist,
+                                        album: song.album,
+                                        albumArt: song.albumArt,
+                                        duration: song.duration,
+                                        genre: song.genre,
+                                        filePath: song.filePath,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              );
+            },
           ),
           Consumer<MusicPlayerProvider>(
             builder: (context, playerProvider, _) {

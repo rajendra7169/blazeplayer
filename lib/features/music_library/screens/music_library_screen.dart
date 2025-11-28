@@ -190,7 +190,7 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
                       width: 50,
                       height: 50,
                       child: CachedArtworkWidget(
-                        songId: songModel.id.toString(),
+                        albumArt: song.albumArt ?? song.id,
                         width: 50,
                         height: 50,
                         fit: BoxFit.cover,

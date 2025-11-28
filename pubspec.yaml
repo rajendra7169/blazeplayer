@@ -51,6 +51,8 @@ dependencies:
   permission_handler: ^11.3.1
   audio_session: ^0.1.21
   palette_generator: ^0.3.3+4
+  audiotagger: ^2.2.1
+  http: ^1.1.0
 
 dev_dependencies:
   flutter_test:

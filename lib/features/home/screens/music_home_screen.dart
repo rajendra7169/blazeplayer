@@ -282,6 +282,16 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    Future.microtask(() async {
+      final provider = Provider.of<MusicPlayerProvider>(context, listen: false);
+      await provider.fetchLocalSongs();
+      await provider.restoreLastPlayedSong();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final authProvider = context.watch<AuthProvider>();
@@ -455,6 +465,7 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                                     title: song.title,
                                     subtitle: song.artist,
                                     songId: int.tryParse(song.id),
+                                    albumArt: song.albumArt ?? song.id,
                                     onTap: () {
                                       playerProvider.playSong(song);
                                     },
@@ -513,6 +524,7 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                                   title: song.title,
                                   subtitle: song.artist,
                                   songId: int.tryParse(song.id),
+                                  albumArt: song.albumArt ?? song.id,
                                   onTap: () {
                                     playerProvider.playSong(song);
                                   },

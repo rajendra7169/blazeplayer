@@ -48,7 +48,7 @@ class MiniPlayer extends StatelessWidget {
       },
       child: currentSong.albumArt != null
           ? ArtworkColorBuilder(
-              songId: currentSong.albumArt!,
+              artwork: currentSong.albumArt ?? currentSong.id,
               builder: (dominantColor, vibrantColor) {
                 return Container(
                   height: 70,
@@ -129,7 +129,7 @@ class MiniPlayer extends StatelessWidget {
                   : Colors.white.withOpacity(0.3),
               child: currentSong.albumArt != null
                   ? CachedArtworkWidget(
-                      songId: currentSong.albumArt!,
+                      albumArt: currentSong.albumArt ?? currentSong.id,
                       width: 70,
                       height: 70,
                       fit: BoxFit.cover,

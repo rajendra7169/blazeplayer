@@ -8,14 +8,24 @@ import '../player/widgets/mini_player.dart';
 
 class MusicSearchDelegate extends SearchDelegate {
   List<String> _recentSearches = [];
+  bool _recentLoaded = false;
 
   MusicSearchDelegate() {
-    _loadRecentSearches();
+    _initRecentSearches();
+  }
+
+  void _initRecentSearches() {
+    if (!_recentLoaded) {
+      _loadRecentSearches();
+      _recentLoaded = true;
+    }
   }
 
   Future<void> _loadRecentSearches() async {
     final prefs = await SharedPreferences.getInstance();
-    _recentSearches = prefs.getStringList('recent_searches') ?? [];
+    final loaded = prefs.getStringList('recent_searches') ?? [];
+    _recentSearches.clear();
+    _recentSearches.addAll(loaded);
   }
 
   Future<void> _saveRecentSearches() async {
@@ -78,6 +88,13 @@ class MusicSearchDelegate extends SearchDelegate {
       context,
       listen: false,
     );
+    // Ensure songs are loaded before showing suggestions
+    if (playerProvider.allSongs.isEmpty) {
+      Future.microtask(() async {
+        await playerProvider.fetchLocalSongs();
+      });
+      return Center(child: Text('Loading songs...'));
+    }
     Widget content;
     if (query.isEmpty && _recentSearches.isNotEmpty) {
       content = Padding(
@@ -111,7 +128,7 @@ class MusicSearchDelegate extends SearchDelegate {
                       child: Column(
                         children: [
                           CachedArtworkWidget(
-                            songId: song.id,
+                            albumArt: song.albumArt ?? song.id,
                             width: 64,
                             height: 64,
                             fit: BoxFit.cover,
@@ -216,7 +233,7 @@ class MusicSearchDelegate extends SearchDelegate {
           ...songResults.map(
             (song) => ListTile(
               leading: CachedArtworkWidget(
-                songId: song.id,
+                albumArt: song.albumArt ?? song.id,
                 width: 40,
                 height: 40,
                 fit: BoxFit.cover,
@@ -227,8 +244,9 @@ class MusicSearchDelegate extends SearchDelegate {
               onTap: () async {
                 if (!_recentSearches.contains(song.id)) {
                   _recentSearches.insert(0, song.id);
-                  if (_recentSearches.length > 10)
+                  if (_recentSearches.length > 10) {
                     _recentSearches = _recentSearches.sublist(0, 10);
+                  }
                   await _saveRecentSearches();
                 }
                 playerProvider.playSong(song);

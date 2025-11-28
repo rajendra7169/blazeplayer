@@ -8,6 +8,7 @@ class Song {
   final String filePath;
   final int playCount;
   final String? genre;
+  final int dateAdded;
 
   Song({
     required this.id,
@@ -19,6 +20,7 @@ class Song {
     required this.filePath,
     this.playCount = 0,
     this.genre,
+    this.dateAdded = 0,
   });
 
   // Dummy songs for testing

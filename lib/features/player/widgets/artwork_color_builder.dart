@@ -1,14 +1,15 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:palette_generator/palette_generator.dart';
 
 class ArtworkColorBuilder extends StatefulWidget {
-  final String songId;
+  final String artwork; // Accepts albumArt string (URL, file path, or songId)
   final Widget Function(Color dominantColor, Color vibrantColor) builder;
 
   const ArtworkColorBuilder({
     super.key,
-    required this.songId,
+    required this.artwork,
     required this.builder,
   });
 
@@ -31,15 +32,16 @@ class _ArtworkColorBuilderState extends State<ArtworkColorBuilder> {
   @override
   void didUpdateWidget(ArtworkColorBuilder oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.songId != widget.songId) {
+    if (oldWidget.artwork != widget.artwork) {
       _extractColors();
     }
   }
 
   Future<void> _extractColors() async {
+    final art = widget.artwork;
     // Check cache first
-    if (_colorCache.containsKey(widget.songId)) {
-      final cached = _colorCache[widget.songId]!;
+    if (_colorCache.containsKey(art)) {
+      final cached = _colorCache[art]!;
       if (mounted) {
         setState(() {
           _dominantColor = cached.dominant;
@@ -49,19 +51,29 @@ class _ArtworkColorBuilderState extends State<ArtworkColorBuilder> {
       }
       return;
     }
-
     try {
-      final audioQuery = OnAudioQuery();
-      final artwork = await audioQuery.queryArtwork(
-        int.parse(widget.songId),
-        ArtworkType.AUDIO,
-        quality: 50,
-        size: 300,
-      );
-
-      if (artwork != null && mounted) {
+      ImageProvider? imageProvider;
+      if (art.isEmpty) {
+        imageProvider = null;
+      } else if (art.startsWith('http')) {
+        imageProvider = NetworkImage(art);
+      } else if (art.startsWith('/') || art.contains(':\\')) {
+        imageProvider = FileImage(File(art));
+      } else {
+        final audioQuery = OnAudioQuery();
+        final artwork = await audioQuery.queryArtwork(
+          int.tryParse(art) ?? 0,
+          ArtworkType.AUDIO,
+          quality: 50,
+          size: 300,
+        );
+        if (artwork != null) {
+          imageProvider = MemoryImage(artwork);
+        }
+      }
+      if (imageProvider != null) {
         final paletteGenerator = await PaletteGenerator.fromImageProvider(
-          MemoryImage(artwork),
+          imageProvider,
           maximumColorCount: 20,
         );
 
@@ -91,7 +103,7 @@ class _ArtworkColorBuilderState extends State<ArtworkColorBuilder> {
         final vibrantColor = Color.lerp(color2, Colors.black, 0.20)!;
 
         // Cache the colors
-        _colorCache[widget.songId] = ColorPair(
+        _colorCache[art] = ColorPair(
           dominant: dominantColor,
           vibrant: vibrantColor,
         );
@@ -103,14 +115,17 @@ class _ArtworkColorBuilderState extends State<ArtworkColorBuilder> {
             _isLoading = false;
           });
         }
+        return;
       }
     } catch (e) {
-      print('Error extracting colors: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      // ignore error, fallback below
+    }
+    if (mounted) {
+      setState(() {
+        _dominantColor = const Color(0xFF2D2D2D);
+        _vibrantColor = const Color(0xFF1A1A1A);
+        _isLoading = false;
+      });
     }
   }
 
@@ -124,6 +139,7 @@ class _ArtworkColorBuilderState extends State<ArtworkColorBuilder> {
 
   @override
   Widget build(BuildContext context) {
+    // Always show a fallback gradient instantly while loading or on error
     return widget.builder(_dominantColor, _vibrantColor);
   }
 }
