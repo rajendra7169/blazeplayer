@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../player/providers/music_player_provider.dart';
@@ -47,7 +48,28 @@ class RecentlyPlayedScreen extends StatelessWidget {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
-                        leading: CachedArtworkWidget(
+                        leading: Selector<MusicPlayerProvider, String?>(
+                          selector: (_, provider) =>
+                              provider.getCustomArtForSong(song.id.toString()),
+                          builder: (context, customArtPath, _) {
+                            if (customArtPath != null &&
+                                customArtPath.isNotEmpty) {
+                              return Image.file(
+                                File(customArtPath),
+                                fit: BoxFit.cover,
+                                width: 56,
+                                height: 56,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Icon(
+                                      Icons.music_note_rounded,
+                                      color: isDark
+                                          ? Colors.white30
+                                          : Colors.grey[600],
+                                      size: 32,
+                                    ),
+                              );
+                            } else {
+                              return CachedArtworkWidget(
                                 songId: song.id.toString(),
                                 width: 56,
                                 height: 56,
@@ -59,7 +81,10 @@ class RecentlyPlayedScreen extends StatelessWidget {
                                       : Colors.grey[600],
                                   size: 32,
                                 ),
-                              ),
+                              );
+                            }
+                          },
+                        ),
                         title: Text(
                           song.title,
                           maxLines: 1,
@@ -84,9 +109,10 @@ class RecentlyPlayedScreen extends StatelessWidget {
                     );
                   },
                 ),
-          Consumer<MusicPlayerProvider>(
-            builder: (context, playerProvider, _) {
-              if (playerProvider.currentSong == null) return SizedBox.shrink();
+          Selector<MusicPlayerProvider, dynamic>(
+            selector: (_, provider) => provider.currentSong,
+            builder: (context, currentSong, _) {
+              if (currentSong == null) return SizedBox.shrink();
               return Positioned(
                 left: 0,
                 right: 0,

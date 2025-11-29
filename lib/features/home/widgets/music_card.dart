@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../player/widgets/cached_artwork_widget.dart';
+import '../../player/providers/music_player_provider.dart';
 
 class MusicCard extends StatefulWidget {
   final String title;
@@ -64,16 +67,45 @@ class _MusicCardState extends State<MusicCard>
                     ? BorderRadius.circular(70)
                     : BorderRadius.circular(12),
                 child: widget.songId != null
-                    ? CachedArtworkWidget(
-                        songId: widget.songId!.toString(),
-                        width: 140,
-                        height: 140,
-                        fit: BoxFit.cover,
-                        fallback: Icon(
-                          widget.isCircular ? Icons.person : Icons.album,
-                          size: 60,
-                          color: isDark ? Colors.white30 : Colors.grey[600],
+                    ? Selector<MusicPlayerProvider, String?>(
+                        selector: (_, provider) => provider.getCustomArtForSong(
+                          widget.songId!.toString(),
                         ),
+                        builder: (context, customArtPath, _) {
+                          if (customArtPath != null &&
+                              customArtPath.isNotEmpty) {
+                            return Image.file(
+                              File(customArtPath),
+                              fit: BoxFit.cover,
+                              width: 140,
+                              height: 140,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Icon(
+                                    widget.isCircular
+                                        ? Icons.person
+                                        : Icons.album,
+                                    size: 60,
+                                    color: isDark
+                                        ? Colors.white30
+                                        : Colors.grey[600],
+                                  ),
+                            );
+                          } else {
+                            return CachedArtworkWidget(
+                              songId: widget.songId!.toString(),
+                              width: 140,
+                              height: 140,
+                              fit: BoxFit.cover,
+                              fallback: Icon(
+                                widget.isCircular ? Icons.person : Icons.album,
+                                size: 60,
+                                color: isDark
+                                    ? Colors.white30
+                                    : Colors.grey[600],
+                              ),
+                            );
+                          }
+                        },
                       )
                     : (widget.imagePath != null
                           ? Image.asset(widget.imagePath!, fit: BoxFit.cover)

@@ -51,6 +51,14 @@ dependencies:
   permission_handler: ^11.3.1
   audio_session: ^0.1.21
   palette_generator: ^0.3.3+4
+  share_plus: ^12.0.1
+
+  # In-app Browser
+  webview_flutter: ^4.0.7
+  webview_flutter_android: ^4.10.9
+  image: ^4.5.4
+  image_cropper: ^11.0.0
+  crop_your_image: ^0.7.4
 
 dev_dependencies:
   flutter_test:

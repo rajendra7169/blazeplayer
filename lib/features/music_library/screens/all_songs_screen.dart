@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../player/providers/music_player_provider.dart';
@@ -204,192 +205,84 @@ class _AllSongsScreenState extends State<AllSongsScreen> {
                     ),
                   ),
                   Expanded(
-                    child: (_filteredSongs.isEmpty && songs.isNotEmpty)
-                        ? ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                            itemCount: songs.length,
-                            itemBuilder: (context, index) {
-                              final song =
-                                  (_filteredSongs.isEmpty && songs.isNotEmpty)
-                                  ? songs[index]
-                                  : _filteredSongs[index];
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: ListTile(
-                                  leading: CachedArtworkWidget(
-                                    songId: song.id,
-                                    width: 56,
-                                    height: 56,
-                                    fit: BoxFit.cover,
-                                    fallback: Icon(
-                                      Icons.music_note_rounded,
-                                      color: isDark
-                                          ? Colors.white30
-                                          : Colors.grey[600],
-                                      size: 32,
-                                    ),
-                                  ),
-                                  title: Text(
-                                    song.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark
-                                          ? Colors.white
-                                          : Colors.black87,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    song.artist,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: isDark
-                                          ? Colors.white60
-                                          : Colors.black54,
-                                    ),
-                                  ),
-                                  onTap: () async {
-                                    final playerProvider =
-                                        Provider.of<MusicPlayerProvider>(
-                                          context,
-                                          listen: false,
-                                        );
-                                    playerProvider.setPlaylist(
-                                      ((_filteredSongs.isEmpty &&
-                                                  songs.isNotEmpty)
-                                              ? songs
-                                              : _filteredSongs)
-                                          .map(
-                                            (song) => Song(
-                                              id: song.id,
-                                              title: song.title,
-                                              artist: song.artist,
-                                              album: song.album,
-                                              albumArt: song.albumArt,
-                                              duration: song.duration,
-                                              genre: song.genre,
-                                              filePath: song.filePath,
-                                            ),
-                                          )
-                                          .toList(),
-                                    );
-                                    await playerProvider.playSong(
-                                      Song(
-                                        id: song.id,
-                                        title: song.title,
-                                        artist: song.artist,
-                                        album: song.album,
-                                        albumArt: song.albumArt,
-                                        duration: song.duration,
-                                        genre: song.genre,
-                                        filePath: song.filePath,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.only(top: 8, bottom: 8),
+                      itemCount: _filteredSongs.length,
+                      itemBuilder: (context, index) {
+                        final song = _filteredSongs[index];
+                        return ListTile(
+                          leading: Selector<MusicPlayerProvider, String?>(
+                            selector: (_, provider) => provider
+                                .getCustomArtForSong(song.id.toString()),
+                            builder: (context, customArtPath, _) {
+                              if (customArtPath != null &&
+                                  customArtPath.isNotEmpty) {
+                                return Image.file(
+                                  File(customArtPath),
+                                  fit: BoxFit.cover,
+                                  width: 56,
+                                  height: 56,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Icon(
+                                        Icons.music_note_rounded,
+                                        color: isDark
+                                            ? Colors.white30
+                                            : Colors.grey[600],
+                                        size: 32,
                                       ),
-                                    );
-                                  },
-                                ),
-                              );
-                            },
-                          )
-                        : _filteredSongs.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No songs found.',
-                              style: TextStyle(
-                                color: isDark ? Colors.white70 : Colors.black54,
-                              ),
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                            itemCount: _filteredSongs.length,
-                            itemBuilder: (context, index) {
-                              final song = _filteredSongs[index];
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: ListTile(
-                                  leading: CachedArtworkWidget(
-                                    songId: song.id,
-                                    width: 56,
-                                    height: 56,
-                                    fit: BoxFit.cover,
-                                    fallback: Icon(
-                                      Icons.music_note_rounded,
-                                      color: isDark
-                                          ? Colors.white30
-                                          : Colors.grey[600],
-                                      size: 32,
-                                    ),
+                                );
+                              } else {
+                                return CachedArtworkWidget(
+                                  songId: song.id.toString(),
+                                  width: 56,
+                                  height: 56,
+                                  fit: BoxFit.cover,
+                                  fallback: Icon(
+                                    Icons.music_note_rounded,
+                                    color: isDark
+                                        ? Colors.white30
+                                        : Colors.grey[600],
+                                    size: 32,
                                   ),
-                                  title: Text(
-                                    song.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark
-                                          ? Colors.white
-                                          : Colors.black87,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    song.artist,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: isDark
-                                          ? Colors.white60
-                                          : Colors.black54,
-                                    ),
-                                  ),
-                                  onTap: () async {
-                                    final playerProvider =
-                                        Provider.of<MusicPlayerProvider>(
-                                          context,
-                                          listen: false,
-                                        );
-                                    playerProvider.setPlaylist(
-                                      _filteredSongs
-                                          .map(
-                                            (song) => Song(
-                                              id: song.id,
-                                              title: song.title,
-                                              artist: song.artist,
-                                              album: song.album,
-                                              albumArt: song.albumArt,
-                                              duration: song.duration,
-                                              genre: song.genre,
-                                              filePath: song.filePath,
-                                            ),
-                                          )
-                                          .toList(),
-                                    );
-                                    await playerProvider.playSong(
-                                      Song(
-                                        id: song.id,
-                                        title: song.title,
-                                        artist: song.artist,
-                                        album: song.album,
-                                        albumArt: song.albumArt,
-                                        duration: song.duration,
-                                        genre: song.genre,
-                                        filePath: song.filePath,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              );
+                                );
+                              }
                             },
                           ),
+                          title: Text(
+                            song.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          subtitle: Text(
+                            song.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: isDark ? Colors.white60 : Colors.black54,
+                            ),
+                          ),
+                          onTap: () {
+                            Provider.of<MusicPlayerProvider>(
+                              context,
+                              listen: false,
+                            ).playSong(song);
+                          },
+                        );
+                      },
+                    ),
                   ),
                 ],
               );
             },
           ),
-          Consumer<MusicPlayerProvider>(
-            builder: (context, playerProvider, _) {
-              if (playerProvider.currentSong == null) return SizedBox.shrink();
+          Selector<MusicPlayerProvider, dynamic>(
+            selector: (_, provider) => provider.currentSong,
+            builder: (context, currentSong, _) {
+              if (currentSong == null) return SizedBox.shrink();
               return Positioned(
                 left: 0,
                 right: 0,

@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:palette_generator/palette_generator.dart';
+import 'package:provider/provider.dart';
+import '../../player/providers/music_player_provider.dart';
 
 class ArtworkColorBuilder extends StatefulWidget {
   final String songId;
@@ -51,6 +55,50 @@ class _ArtworkColorBuilderState extends State<ArtworkColorBuilder> {
     }
 
     try {
+      // Get provider from context
+      final playerProvider = Provider.of<MusicPlayerProvider>(
+        context,
+        listen: false,
+      );
+      String? customArtPath = playerProvider.getCustomArtForSong(widget.songId);
+      if (customArtPath != null &&
+          customArtPath.isNotEmpty &&
+          File(customArtPath).existsSync()) {
+        final paletteGenerator = await PaletteGenerator.fromImageProvider(
+          FileImage(File(customArtPath)),
+          maximumColorCount: 20,
+        );
+        Color color1 =
+            paletteGenerator.dominantColor?.color ??
+            paletteGenerator.vibrantColor?.color ??
+            const Color(0xFF2D2D2D);
+        Color color2 =
+            paletteGenerator.darkVibrantColor?.color ??
+            paletteGenerator.mutedColor?.color ??
+            paletteGenerator.lightVibrantColor?.color ??
+            const Color(0xFF1A1A1A);
+        if (_colorsSimilar(color1, color2)) {
+          color2 =
+              paletteGenerator.lightMutedColor?.color ??
+              paletteGenerator.darkMutedColor?.color ??
+              Color.lerp(color1, Colors.black, 0.5)!;
+        }
+        final dominantColor = Color.lerp(color1, Colors.black, 0.15)!;
+        final vibrantColor = Color.lerp(color2, Colors.black, 0.20)!;
+        _colorCache[widget.songId] = ColorPair(
+          dominant: dominantColor,
+          vibrant: vibrantColor,
+        );
+        if (mounted) {
+          setState(() {
+            _dominantColor = dominantColor;
+            _vibrantColor = vibrantColor;
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
       final audioQuery = OnAudioQuery();
       final artwork = await audioQuery.queryArtwork(
         int.parse(widget.songId),

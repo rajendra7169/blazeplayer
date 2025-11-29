@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import '../models/song_model.dart';
 import '../services/audio_player_service.dart';
+import 'package:blazeplayer/core/services/local_storage_service.dart';
 
 class MusicPlayerProvider extends ChangeNotifier {
   final AudioPlayerService _audioService = AudioPlayerService();
@@ -19,6 +21,7 @@ class MusicPlayerProvider extends ChangeNotifier {
   List<Song> _originalPlaylist = [];
   List<Song> _recentlyPlayedSongs = [];
   final Map<String, int> _songPlayCounts = {};
+  final Map<String, String> _customArtPaths = {};
 
   static const _recentlyPlayedKey = 'recently_played_songs';
 
@@ -187,6 +190,15 @@ class MusicPlayerProvider extends ChangeNotifier {
         _recentlyPlayedSongs = [];
       }
       notifyListeners();
+    }
+  }
+
+  void preloadCustomArtPaths() {
+    for (final song in _originalPlaylist) {
+      final artPath = getCustomArtForSong(song.id);
+      if (artPath != null && artPath.isNotEmpty) {
+        _customArtPaths[song.id] = artPath;
+      }
     }
   }
 
@@ -362,17 +374,93 @@ class MusicPlayerProvider extends ChangeNotifier {
             id: song.id.toString(),
             title: song.title,
             artist: song.artist ?? 'Unknown Artist',
-            album: song.album ?? '',
+            album: song.album ?? 'Unknown Album',
             albumArt: song.id.toString(),
             duration: Duration(milliseconds: song.duration ?? 0),
-            genre: song.genre,
             filePath: song.data,
-            dateAdded: song.dateAdded ?? 0,
           ),
         )
         .toList();
-    _playlist = List.from(_originalPlaylist);
+    preloadCustomArtPaths();
     notifyListeners();
+  }
+
+  void setVolume(double value) {
+    _audioService.setVolume(value);
+  }
+
+  // Sleep Timer State
+  Duration? _sleepTimerDuration;
+  DateTime? _sleepTimerEndTime;
+  bool get isSleepTimerActive =>
+      _sleepTimerEndTime != null &&
+      DateTime.now().isBefore(_sleepTimerEndTime!);
+  Duration get sleepTimerRemaining {
+    if (_sleepTimerEndTime == null) return Duration.zero;
+    final remaining = _sleepTimerEndTime!.difference(DateTime.now());
+    return remaining > Duration.zero ? remaining : Duration.zero;
+  }
+
+  Duration? get sleepTimerDuration => _sleepTimerDuration;
+
+  void setSleepTimer(Duration duration) {
+    _sleepTimerDuration = duration;
+    _sleepTimerEndTime = DateTime.now().add(duration);
+    notifyListeners();
+    _startSleepTimerCountdown();
+  }
+
+  void cancelSleepTimer() {
+    _sleepTimerDuration = null;
+    _sleepTimerEndTime = null;
+    notifyListeners();
+  }
+
+  void resetSleepTimer() {
+    if (_sleepTimerDuration != null) {
+      setSleepTimer(_sleepTimerDuration!);
+    }
+  }
+
+  Timer? _sleepTimer;
+  void _startSleepTimerCountdown() {
+    _sleepTimer?.cancel();
+    if (_sleepTimerEndTime == null) return;
+    final remaining = _sleepTimerEndTime!.difference(DateTime.now());
+    if (remaining <= Duration.zero) {
+      _handleSleepTimerComplete();
+      return;
+    }
+    _sleepTimer = Timer(remaining, _handleSleepTimerComplete);
+  }
+
+  void _handleSleepTimerComplete() {
+    _sleepTimerDuration = null;
+    _sleepTimerEndTime = null;
+    _audioService.stop();
+    _isPlaying = false;
+    notifyListeners();
+  }
+
+  String? _customArtPath;
+  String? get customArtPath => _customArtPath;
+
+  Future<void> setCustomArtForSong(String songId, String imagePath) async {
+    if (!LocalStorageService.isInitialized) {
+      await LocalStorageService.init();
+    }
+    _customArtPath = imagePath;
+    await LocalStorageService.setString('custom_art_$songId', imagePath);
+    notifyListeners();
+  }
+
+  String? getCustomArtForSong(String songId) {
+    if (!LocalStorageService.isInitialized) {
+      LocalStorageService.init();
+    }
+    // Prefer cached value if available
+    return _customArtPaths[songId] ??
+        LocalStorageService.getString('custom_art_$songId');
   }
 
   @override

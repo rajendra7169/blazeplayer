@@ -51,6 +51,10 @@ class AudioPlayerService {
     await _audioPlayer.setShuffleModeEnabled(enabled);
   }
 
+  void setVolume(double value) {
+    _audioPlayer.setVolume(value);
+  }
+
   Stream<Duration> get positionStream => _audioPlayer.positionStream;
   Stream<Duration?> get durationStream => _audioPlayer.durationStream;
   Stream<PlayerState> get playerStateStream => _audioPlayer.playerStateStream;

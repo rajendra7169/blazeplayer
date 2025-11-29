@@ -18,6 +18,8 @@ class LocalStorageService {
     }
   }
 
+  static bool get isInitialized => _prefs != null;
+
   static Future<bool> setString(String key, String value) async {
     try {
       return await _prefs?.setString(key, value) ?? false;

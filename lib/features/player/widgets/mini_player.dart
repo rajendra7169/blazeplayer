@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/music_player_provider.dart';
@@ -10,101 +11,68 @@ class MiniPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final playerProvider = context.watch<MusicPlayerProvider>();
-    final currentSong = playerProvider.currentSong;
-
-    if (currentSong == null) {
-      return const SizedBox.shrink();
-    }
-
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(
-          PageRouteBuilder(
-            opaque: false,
-            barrierColor: Colors.black.withOpacity(0.0),
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const FullPlayerScreen(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-                  const begin = Offset(0.0, 1.0);
-                  const end = Offset.zero;
-                  const curve = Curves.easeOutCubic;
-                  var tween = Tween(
-                    begin: begin,
-                    end: end,
-                  ).chain(CurveTween(curve: curve));
-                  var offsetAnimation = animation.drive(tween);
-                  return SlideTransition(
-                    position: offsetAnimation,
-                    child: child,
-                  );
-                },
-            transitionDuration: const Duration(milliseconds: 400),
-          ),
+    return Selector<MusicPlayerProvider, dynamic>(
+      selector: (_, provider) => provider.currentSong,
+      builder: (context, currentSong, _) {
+        if (currentSong == null) {
+          return const SizedBox.shrink();
+        }
+        return GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(
+              PageRouteBuilder(
+                opaque: false,
+                barrierColor: Colors.black.withOpacity(0.0),
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    const FullPlayerScreen(),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                      const begin = Offset(0.0, 1.0);
+                      const end = Offset.zero;
+                      const curve = Curves.easeOutCubic;
+                      var tween = Tween(
+                        begin: begin,
+                        end: end,
+                      ).chain(CurveTween(curve: curve));
+                      var offsetAnimation = animation.drive(tween);
+                      return SlideTransition(
+                        position: offsetAnimation,
+                        child: child,
+                      );
+                    },
+                transitionDuration: const Duration(milliseconds: 400),
+              ),
+            );
+          },
+          child: currentSong.albumArt != null
+              ? ArtworkColorBuilder(
+                  songId: currentSong.albumArt!,
+                  builder: (dominantColor, vibrantColor) {
+                    return Container(
+                      height: 70,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [dominantColor, vibrantColor],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                      ),
+                      child: _buildMiniPlayerContent(
+                        context,
+                        currentSong,
+                        Provider.of<MusicPlayerProvider>(
+                          context,
+                          listen: false,
+                        ),
+                        isDark,
+                      ),
+                    );
+                  },
+                )
+              : Container(),
         );
       },
-      child: currentSong.albumArt != null
-          ? ArtworkColorBuilder(
-              songId: currentSong.albumArt!,
-              builder: (dominantColor, vibrantColor) {
-                return Container(
-                  height: 70,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [dominantColor, vibrantColor],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: dominantColor.withOpacity(0.4),
-                        blurRadius: 10,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: _buildMiniPlayerContent(
-                    context,
-                    currentSong,
-                    playerProvider,
-                    isDark,
-                  ),
-                );
-              },
-            )
-          : Container(
-              height: 70,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isDark
-                      ? [const Color(0xFF2D2D2D), const Color(0xFF1A1A1A)]
-                      : [
-                          const Color(0xFFFFA726).withOpacity(0.9),
-                          const Color(0xFFFF7043).withOpacity(0.9),
-                        ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: isDark
-                        ? Colors.black.withOpacity(0.3)
-                        : const Color(0xFFFFA726).withOpacity(0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: _buildMiniPlayerContent(
-                context,
-                currentSong,
-                playerProvider,
-                isDark,
-              ),
-            ),
     );
   }
 
@@ -127,23 +95,42 @@ class MiniPlayer extends StatelessWidget {
               color: isDark
                   ? const Color(0xFF3D3D3D)
                   : Colors.white.withOpacity(0.3),
-              child: currentSong.albumArt != null
-                  ? CachedArtworkWidget(
-                      songId: currentSong.albumArt!,
-                      width: 70,
-                      height: 70,
-                      fit: BoxFit.cover,
-                      fallback: const Icon(
-                        Icons.music_note_rounded,
-                        color: Colors.white,
-                        size: 32,
-                      ),
-                    )
-                  : const Icon(
+              child: (() {
+                final customArtPath = playerProvider.getCustomArtForSong(
+                  currentSong.id,
+                );
+                if (customArtPath != null && customArtPath.isNotEmpty) {
+                  return Image.file(
+                    File(customArtPath),
+                    fit: BoxFit.cover,
+                    width: 70,
+                    height: 70,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
                       Icons.music_note_rounded,
                       color: Colors.white,
                       size: 32,
                     ),
+                  );
+                } else if (currentSong.albumArt != null) {
+                  return CachedArtworkWidget(
+                    songId: currentSong.albumArt!,
+                    width: 70,
+                    height: 70,
+                    fit: BoxFit.cover,
+                    fallback: const Icon(
+                      Icons.music_note_rounded,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  );
+                } else {
+                  return const Icon(
+                    Icons.music_note_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  );
+                }
+              })(),
             ),
           ),
         ),

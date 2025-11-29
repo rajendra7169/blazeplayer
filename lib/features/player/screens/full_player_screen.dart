@@ -1,10 +1,14 @@
 import 'dart:ui';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/music_player_provider.dart';
 import '../widgets/cached_artwork_widget.dart';
 import '../widgets/artwork_color_builder.dart';
+import '../widgets/full_player/song_options_sheet.dart';
+import '../widgets/full_player/sleep_timer_sheet.dart';
 import 'lyrics_screen.dart';
+import '../models/song_model.dart';
 
 class FullPlayerScreen extends StatefulWidget {
   const FullPlayerScreen({super.key});
@@ -19,129 +23,205 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
   double _verticalDragStart = 0.0;
   double _horizontalDragStart = 0.0;
 
+  void _showTimerToast(Duration duration) {
+    final overlay = Overlay.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    String toastText;
+    if (duration.inSeconds == -1) {
+      toastText = 'Sleep timer is off ';
+    } else if (duration.inHours > 0 &&
+        duration.inMinutes % 60 > 0 &&
+        duration.inSeconds % 60 > 0) {
+      toastText =
+          'Timer set for ${duration.inHours}:${(duration.inMinutes % 60).toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')} ';
+    } else if (duration.inHours > 0 && duration.inMinutes % 60 > 0) {
+      toastText =
+          'Timer set for ${duration.inHours}h ${(duration.inMinutes % 60)}m ';
+    } else if (duration.inHours > 0) {
+      toastText =
+          'Timer set for ${duration.inHours} hour${duration.inHours > 1 ? 's' : ''} ';
+    } else if (duration.inMinutes > 0 && duration.inSeconds % 60 > 0) {
+      toastText =
+          'Timer set for ${duration.inMinutes}m ${(duration.inSeconds % 60)}s ';
+    } else if (duration.inMinutes > 0) {
+      toastText =
+          'Timer set for ${duration.inMinutes} minute${duration.inMinutes > 1 ? 's' : ''} ';
+    } else if (duration.inSeconds > 0) {
+      toastText =
+          'Timer set for ${duration.inSeconds} second${duration.inSeconds > 1 ? 's' : ''} ';
+    } else {
+      toastText = 'Timer set';
+    }
+    final toast = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 48,
+        left: 32,
+        right: 32,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            constraints: BoxConstraints(maxWidth: 220),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF232323) : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 7,
+                  offset: Offset(0, 2),
+                ),
+              ],
+              border: Border.all(
+                color: isDark
+                    ? const Color(0xFFFFA726)
+                    : const Color(0xFFFF7043),
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  toastText,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const Text('⏰', style: TextStyle(fontSize: 15)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    overlay.insert(toast);
+    Future.delayed(const Duration(seconds: 2), () {
+      toast.remove();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final playerProvider = context.watch<MusicPlayerProvider>();
-    final currentSong = playerProvider.currentSong;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    if (currentSong == null) {
-      Navigator.of(context).pop();
-      return const SizedBox.shrink();
-    }
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onVerticalDragStart: (details) {
-        _verticalDragStart = details.globalPosition.dy;
-      },
-      onVerticalDragUpdate: (details) {
-        // Track vertical movement
-        final delta = details.globalPosition.dy - _verticalDragStart;
-        // Only allow vertical gestures if moving more vertically than horizontally
-        if (delta.abs() > 10) {
-          setState(() {});
-        }
-      },
-      onVerticalDragEnd: (details) {
-        final velocity = details.primaryVelocity ?? 0;
-
-        // Swipe down to close (velocity > 300)
-        if (velocity > 300) {
+    return Selector<MusicPlayerProvider, Song?>(
+      selector: (_, provider) => provider.currentSong,
+      builder: (context, currentSong, _) {
+        if (currentSong == null) {
           Navigator.of(context).pop();
+          return const SizedBox.shrink();
         }
-        // Swipe up to open lyrics (velocity < -300)
-        else if (velocity < -300) {
-          Navigator.of(context).push(
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  const LyricsScreen(),
-              transitionsBuilder:
-                  (context, animation, secondaryAnimation, child) {
-                    const begin = Offset(0.0, 1.0);
-                    const end = Offset.zero;
-                    const curve = Curves.easeOutCubic;
-                    var tween = Tween(
-                      begin: begin,
-                      end: end,
-                    ).chain(CurveTween(curve: curve));
-                    var offsetAnimation = animation.drive(tween);
-                    return SlideTransition(
-                      position: offsetAnimation,
-                      child: child,
-                    );
-                  },
-              transitionDuration: const Duration(milliseconds: 300),
-            ),
-          );
-        }
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onVerticalDragStart: (details) {
+            _verticalDragStart = details.globalPosition.dy;
+          },
+          onVerticalDragUpdate: (details) {
+            final delta = details.globalPosition.dy - _verticalDragStart;
+            if (delta.abs() > 10) {
+              setState(() {});
+            }
+          },
+          onVerticalDragEnd: (details) {
+            final velocity = details.primaryVelocity ?? 0;
+            if (velocity > 300) {
+              Navigator.of(context).pop();
+            } else if (velocity < -300) {
+              Navigator.of(context).push(
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      const LyricsScreen(),
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
+                        const begin = Offset(0.0, 1.0);
+                        const end = Offset.zero;
+                        const curve = Curves.easeOutCubic;
+                        var tween = Tween(
+                          begin: begin,
+                          end: end,
+                        ).chain(CurveTween(curve: curve));
+                        var offsetAnimation = animation.drive(tween);
+                        return SlideTransition(
+                          position: offsetAnimation,
+                          child: child,
+                        );
+                      },
+                  transitionDuration: const Duration(milliseconds: 300),
+                ),
+              );
+            }
+          },
+          child: Material(
+            color: Colors.transparent,
+            child: currentSong.albumArt != null
+                ? ArtworkColorBuilder(
+                    songId: currentSong.albumArt!,
+                    builder: (dominantColor, vibrantColor) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: isDark
+                                ? [
+                                    dominantColor,
+                                    Color.lerp(
+                                      dominantColor,
+                                      vibrantColor,
+                                      0.6,
+                                    )!,
+                                    vibrantColor,
+                                    Color.lerp(
+                                      vibrantColor,
+                                      Colors.black,
+                                      0.4,
+                                    )!,
+                                    const Color(0xFF000000),
+                                  ]
+                                : [
+                                    Color.lerp(
+                                      dominantColor,
+                                      Colors.white,
+                                      0.2,
+                                    )!,
+                                    dominantColor,
+                                    Color.lerp(
+                                      dominantColor,
+                                      vibrantColor,
+                                      0.5,
+                                    )!,
+                                    vibrantColor,
+                                    Color.lerp(
+                                      vibrantColor,
+                                      Colors.black,
+                                      0.2,
+                                    )!,
+                                  ],
+                            stops: isDark
+                                ? [0.0, 0.25, 0.5, 0.75, 1.0]
+                                : [0.0, 0.2, 0.5, 0.75, 1.0],
+                          ),
+                        ),
+                        child: _buildPlayerContent(
+                          context,
+                          Provider.of<MusicPlayerProvider>(
+                            context,
+                            listen: false,
+                          ),
+                          currentSong,
+                          isDark,
+                        ),
+                      );
+                    },
+                  )
+                : Container(),
+          ),
+        );
       },
-      child: Material(
-        color: Colors.transparent,
-        child: currentSong.albumArt != null
-            ? ArtworkColorBuilder(
-                songId: currentSong.albumArt!,
-                builder: (dominantColor, vibrantColor) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: isDark
-                            ? [
-                                dominantColor,
-                                Color.lerp(dominantColor, vibrantColor, 0.6)!,
-                                vibrantColor,
-                                Color.lerp(vibrantColor, Colors.black, 0.4)!,
-                                const Color(0xFF000000),
-                              ]
-                            : [
-                                Color.lerp(dominantColor, Colors.white, 0.2)!,
-                                dominantColor,
-                                Color.lerp(dominantColor, vibrantColor, 0.5)!,
-                                vibrantColor,
-                                Color.lerp(vibrantColor, Colors.black, 0.2)!,
-                              ],
-                        stops: isDark
-                            ? [0.0, 0.25, 0.5, 0.75, 1.0]
-                            : [0.0, 0.2, 0.5, 0.75, 1.0],
-                      ),
-                    ),
-                    child: _buildPlayerContent(
-                      context,
-                      playerProvider,
-                      currentSong,
-                      isDark,
-                    ),
-                  );
-                },
-              )
-            : Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: isDark
-                        ? [
-                            const Color(0xFF2D2D2D),
-                            const Color(0xFF1A1A1A),
-                            const Color(0xFF000000),
-                          ]
-                        : [
-                            const Color(0xFFE8B4B8),
-                            const Color(0xFFB8A4C9),
-                            const Color(0xFF8B7B9B),
-                          ],
-                  ),
-                ),
-                child: _buildPlayerContent(
-                  context,
-                  playerProvider,
-                  currentSong,
-                  isDark,
-                ),
-              ),
-      ), // Close Material and GestureDetector
     );
   }
 
@@ -212,7 +292,7 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                           IconButton(
                             onPressed: () {},
                             icon: Icon(
-                              Icons.more_horiz_rounded,
+                              Icons.equalizer_rounded,
                               color: isDark ? Colors.white : Colors.white,
                               size: 28,
                             ),
@@ -260,32 +340,44 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(20),
-                                  child: currentSong.albumArt != null
-                                      ? CachedArtworkWidget(
-                                          songId: currentSong.albumArt!,
-                                          fit: BoxFit.cover,
-                                          borderRadius: BorderRadius.zero,
-                                          fallback: Container(
-                                            decoration: BoxDecoration(
-                                              gradient: LinearGradient(
-                                                colors: [
-                                                  const Color(
-                                                    0xFFFFA726,
-                                                  ).withOpacity(0.7),
-                                                  const Color(
-                                                    0xFFFF7043,
-                                                  ).withOpacity(0.7),
-                                                ],
-                                              ),
-                                            ),
-                                            child: const Icon(
-                                              Icons.music_note_rounded,
-                                              color: Colors.white,
-                                              size: 120,
-                                            ),
-                                          ),
-                                        )
-                                      : Container(
+                                  child: (() {
+                                    final customArtPath = playerProvider
+                                        .getCustomArtForSong(currentSong.id);
+                                    if (customArtPath != null &&
+                                        customArtPath.isNotEmpty) {
+                                      return Image.file(
+                                        File(customArtPath),
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Container(
+                                                  decoration: BoxDecoration(
+                                                    gradient: LinearGradient(
+                                                      colors: [
+                                                        const Color(
+                                                          0xFFFFA726,
+                                                        ).withOpacity(0.7),
+                                                        const Color(
+                                                          0xFFFF7043,
+                                                        ).withOpacity(0.7),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.music_note_rounded,
+                                                    color: Colors.white,
+                                                    size: 120,
+                                                  ),
+                                                ),
+                                      );
+                                    } else if (currentSong.albumArt != null) {
+                                      return CachedArtworkWidget(
+                                        songId: currentSong.albumArt!,
+                                        fit: BoxFit.cover,
+                                        borderRadius: BorderRadius.zero,
+                                        fallback: Container(
                                           decoration: BoxDecoration(
                                             gradient: LinearGradient(
                                               colors: [
@@ -304,6 +396,29 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                                             size: 120,
                                           ),
                                         ),
+                                      );
+                                    } else {
+                                      return Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              const Color(
+                                                0xFFFFA726,
+                                              ).withOpacity(0.7),
+                                              const Color(
+                                                0xFFFF7043,
+                                              ).withOpacity(0.7),
+                                            ],
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.music_note_rounded,
+                                          color: Colors.white,
+                                          size: 120,
+                                        ),
+                                      );
+                                    }
+                                  })(),
                                 ),
                               ),
                             ),
@@ -368,7 +483,29 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                                     ),
                                   ),
                                   IconButton(
-                                    onPressed: () {},
+                                    onPressed: () {
+                                      showModalBottomSheet(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        backgroundColor: isDark
+                                            ? const Color(0xFF232323)
+                                            : Colors.white,
+                                        shape: const RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.vertical(
+                                            top: Radius.circular(28),
+                                          ),
+                                        ),
+                                        builder: (context) {
+                                          return SongOptionsSheet(
+                                            song: currentSong,
+                                            isDark: isDark,
+                                            playerProvider: playerProvider,
+                                            onShowTimerToast:
+                                                _showTimerToast, // Pass the toast callback
+                                          );
+                                        },
+                                      );
+                                    },
                                     icon: Icon(
                                       Icons.more_horiz_rounded,
                                       color: isDark

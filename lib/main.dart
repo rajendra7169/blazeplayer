@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import 'core/services/local_storage_service.dart';
 import 'core/theme/app_theme.dart';
@@ -22,7 +24,7 @@ final themeNotifier = ThemeNotifier();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  WebViewPlatform.instance = AndroidWebViewPlatform();
   try {
     // Initialize Firebase
     await Firebase.initializeApp();
