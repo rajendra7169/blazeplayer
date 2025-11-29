@@ -9,6 +9,7 @@ import '../widgets/full_player/song_options_sheet.dart';
 import '../widgets/full_player/sleep_timer_sheet.dart';
 import 'lyrics_screen.dart';
 import '../models/song_model.dart';
+import '../widgets/full_player/position_indicator.dart';
 
 class FullPlayerScreen extends StatefulWidget {
   const FullPlayerScreen({super.key});
@@ -322,37 +323,43 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                             playerProvider.nextSong();
                           }
                         },
-                        child: Hero(
-                          tag: 'album_art_${currentSong.id}',
-                          child: RepaintBoundary(
-                            child: AspectRatio(
-                              aspectRatio: 1,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.4),
-                                      blurRadius: 30,
-                                      offset: const Offset(0, 15),
+                        child: Selector<MusicPlayerProvider, String?>(
+                          selector: (_, provider) =>
+                              provider.getCustomArtForSong(currentSong.id),
+                          builder: (context, customArtPath, _) {
+                            return Hero(
+                              tag:
+                                  'album_art_${currentSong.id}_${customArtPath ?? ''}',
+                              child: RepaintBoundary(
+                                child: AspectRatio(
+                                  aspectRatio: 1,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.4),
+                                          blurRadius: 30,
+                                          offset: const Offset(0, 15),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(20),
-                                  child: (() {
-                                    final customArtPath = playerProvider
-                                        .getCustomArtForSong(currentSong.id);
-                                    if (customArtPath != null &&
-                                        customArtPath.isNotEmpty) {
-                                      return Image.file(
-                                        File(customArtPath),
-                                        fit: BoxFit.cover,
-                                        width: double.infinity,
-                                        height: double.infinity,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                Container(
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: (() {
+                                        if (customArtPath != null &&
+                                            customArtPath.isNotEmpty) {
+                                          return Image.file(
+                                            File(customArtPath),
+                                            fit: BoxFit.cover,
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                            errorBuilder:
+                                                (
+                                                  context,
+                                                  error,
+                                                  stackTrace,
+                                                ) => Container(
                                                   decoration: BoxDecoration(
                                                     gradient: LinearGradient(
                                                       colors: [
@@ -371,58 +378,61 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                                                     size: 120,
                                                   ),
                                                 ),
-                                      );
-                                    } else if (currentSong.albumArt != null) {
-                                      return CachedArtworkWidget(
-                                        songId: currentSong.albumArt!,
-                                        fit: BoxFit.cover,
-                                        borderRadius: BorderRadius.zero,
-                                        fallback: Container(
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              colors: [
-                                                const Color(
-                                                  0xFFFFA726,
-                                                ).withOpacity(0.7),
-                                                const Color(
-                                                  0xFFFF7043,
-                                                ).withOpacity(0.7),
-                                              ],
+                                          );
+                                        } else if (currentSong.albumArt !=
+                                            null) {
+                                          return CachedArtworkWidget(
+                                            songId: currentSong.albumArt!,
+                                            fit: BoxFit.cover,
+                                            borderRadius: BorderRadius.zero,
+                                            fallback: Container(
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  colors: [
+                                                    const Color(
+                                                      0xFFFFA726,
+                                                    ).withOpacity(0.7),
+                                                    const Color(
+                                                      0xFFFF7043,
+                                                    ).withOpacity(0.7),
+                                                  ],
+                                                ),
+                                              ),
+                                              child: const Icon(
+                                                Icons.music_note_rounded,
+                                                color: Colors.white,
+                                                size: 120,
+                                              ),
                                             ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.music_note_rounded,
-                                            color: Colors.white,
-                                            size: 120,
-                                          ),
-                                        ),
-                                      );
-                                    } else {
-                                      return Container(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              const Color(
-                                                0xFFFFA726,
-                                              ).withOpacity(0.7),
-                                              const Color(
-                                                0xFFFF7043,
-                                              ).withOpacity(0.7),
-                                            ],
-                                          ),
-                                        ),
-                                        child: const Icon(
-                                          Icons.music_note_rounded,
-                                          color: Colors.white,
-                                          size: 120,
-                                        ),
-                                      );
-                                    }
-                                  })(),
+                                          );
+                                        } else {
+                                          return Container(
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  const Color(
+                                                    0xFFFFA726,
+                                                  ).withOpacity(0.7),
+                                                  const Color(
+                                                    0xFFFF7043,
+                                                  ).withOpacity(0.7),
+                                                ],
+                                              ),
+                                            ),
+                                            child: const Icon(
+                                              Icons.music_note_rounded,
+                                              color: Colors.white,
+                                              size: 120,
+                                            ),
+                                          );
+                                        }
+                                      })(),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -529,87 +539,46 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 30),
                       child: Column(
                         children: [
-                          SliderTheme(
-                            data: SliderThemeData(
-                              trackHeight: 5,
-                              thumbShape: const RoundSliderThumbShape(
-                                enabledThumbRadius: 7,
-                              ),
-                              overlayShape: const RoundSliderOverlayShape(
-                                overlayRadius: 18,
-                              ),
-                              activeTrackColor: isDark
-                                  ? Colors.white
-                                  : Colors.white,
-                              inactiveTrackColor:
-                                  (isDark ? Colors.white : Colors.white)
-                                      .withOpacity(0.3),
-                              thumbColor: isDark ? Colors.white : Colors.white,
-                              overlayColor:
-                                  (isDark ? Colors.white : Colors.white)
-                                      .withOpacity(0.2),
-                            ),
-                            child: Slider(
-                              value: _isDragging
-                                  ? _dragPosition
-                                  : playerProvider.currentPosition.inSeconds
-                                        .toDouble()
-                                        .clamp(
-                                          0.0,
-                                          currentSong.duration.inSeconds
-                                              .toDouble(),
-                                        )
-                                        .toDouble(),
-                              max: currentSong.duration.inSeconds.toDouble() > 0
-                                  ? currentSong.duration.inSeconds.toDouble()
-                                  : 0.1,
-                              onChanged: (value) {
-                                setState(() {
-                                  _isDragging = true;
-                                  _dragPosition = value;
-                                });
-                              },
-                              onChangeEnd: (value) {
-                                playerProvider.seekTo(
-                                  Duration(seconds: value.toInt()),
-                                );
-                                setState(() {
-                                  _isDragging = false;
-                                });
-                              },
-                            ),
+                          // Slider above
+                          PositionIndicator(
+                            positionNotifier: playerProvider.positionNotifier,
+                            duration: currentSong.duration,
+                            isDark: isDark,
+                            onSeek: (value) {
+                              setState(() {
+                                _isDragging = false;
+                              });
+                              playerProvider.seekTo(
+                                Duration(milliseconds: value.toInt()),
+                              );
+                            },
                           ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  _formatDuration(
-                                    _isDragging
-                                        ? Duration(
-                                            seconds: _dragPosition.toInt(),
-                                          )
-                                        : playerProvider.currentPosition,
+                          // Time below
+                          ValueListenableBuilder<Duration>(
+                            valueListenable: playerProvider.positionNotifier,
+                            builder: (context, position, _) {
+                              return Row(
+                                mainAxisAlignment: MainAxisAlignment
+                                    .center, // Center both times
+                                children: [
+                                  Text(
+                                    _formatDuration(position),
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.7),
+                                      fontSize: 13,
+                                    ),
                                   ),
-                                  style: TextStyle(
-                                    color:
-                                        (isDark ? Colors.white : Colors.white)
-                                            .withOpacity(0.7),
-                                    fontSize: 12,
+                                  SizedBox(width: 240),
+                                  Text(
+                                    _formatDuration(currentSong.duration),
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.7),
+                                      fontSize: 13,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  '-${_formatDuration(_isDragging ? Duration(seconds: (currentSong.duration.inSeconds - _dragPosition.toInt())) : currentSong.duration - playerProvider.currentPosition)}',
-                                  style: TextStyle(
-                                    color:
-                                        (isDark ? Colors.white : Colors.white)
-                                            .withOpacity(0.7),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -624,19 +593,24 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           // Shuffle Button (Left)
-                          IconButton(
-                            onPressed: () => playerProvider.toggleShuffle(),
-                            icon: Icon(
-                              Icons.shuffle_rounded,
-                              color: playerProvider.isShuffle
-                                  ? (isDark
-                                        ? const Color(0xFFFFA726)
-                                        : Colors.white)
-                                  : (isDark ? Colors.white : Colors.white)
-                                        .withOpacity(0.5),
-                              size: 28,
-                            ),
-                            padding: EdgeInsets.zero,
+                          Selector<MusicPlayerProvider, bool>(
+                            selector: (_, provider) => provider.isShuffle,
+                            builder: (context, isShuffle, _) {
+                              return IconButton(
+                                onPressed: () => playerProvider.toggleShuffle(),
+                                icon: Icon(
+                                  Icons.shuffle_rounded,
+                                  color: isShuffle
+                                      ? (isDark
+                                            ? const Color(0xFFFFA726)
+                                            : Colors.white)
+                                      : (isDark ? Colors.white : Colors.white)
+                                            .withOpacity(0.5),
+                                  size: 28,
+                                ),
+                                padding: EdgeInsets.zero,
+                              );
+                            },
                           ),
 
                           // Previous Button
@@ -651,16 +625,22 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                           ),
 
                           // Play/Pause Button - Large
-                          IconButton(
-                            onPressed: () => playerProvider.togglePlayPause(),
-                            icon: Icon(
-                              playerProvider.isPlaying
-                                  ? Icons.pause_rounded
-                                  : Icons.play_arrow_rounded,
-                              color: isDark ? Colors.white : Colors.white,
-                              size: 70,
-                            ),
-                            padding: EdgeInsets.zero,
+                          Selector<MusicPlayerProvider, bool>(
+                            selector: (_, provider) => provider.isPlaying,
+                            builder: (context, isPlaying, _) {
+                              return IconButton(
+                                onPressed: () =>
+                                    playerProvider.togglePlayPause(),
+                                icon: Icon(
+                                  isPlaying
+                                      ? Icons.pause_rounded
+                                      : Icons.play_arrow_rounded,
+                                  color: isDark ? Colors.white : Colors.white,
+                                  size: 70,
+                                ),
+                                padding: EdgeInsets.zero,
+                              );
+                            },
                           ),
 
                           // Next Button
@@ -675,21 +655,27 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                           ),
 
                           // Repeat Button (Right)
-                          IconButton(
-                            onPressed: () => playerProvider.cycleRepeatMode(),
-                            icon: Icon(
-                              playerProvider.repeatMode == RepeatMode.one
-                                  ? Icons.repeat_one_rounded
-                                  : Icons.repeat_rounded,
-                              color: playerProvider.repeatMode != RepeatMode.off
-                                  ? (isDark
-                                        ? const Color(0xFFFFA726)
-                                        : Colors.white)
-                                  : (isDark ? Colors.white : Colors.white)
-                                        .withOpacity(0.5),
-                              size: 28,
-                            ),
-                            padding: EdgeInsets.zero,
+                          Selector<MusicPlayerProvider, RepeatMode>(
+                            selector: (_, provider) => provider.repeatMode,
+                            builder: (context, repeatMode, _) {
+                              return IconButton(
+                                onPressed: () =>
+                                    playerProvider.cycleRepeatMode(),
+                                icon: Icon(
+                                  repeatMode == RepeatMode.one
+                                      ? Icons.repeat_one_rounded
+                                      : Icons.repeat_rounded,
+                                  color: repeatMode != RepeatMode.off
+                                      ? (isDark
+                                            ? const Color(0xFFFFA726)
+                                            : Colors.white)
+                                      : (isDark ? Colors.white : Colors.white)
+                                            .withOpacity(0.5),
+                                  size: 28,
+                                ),
+                                padding: EdgeInsets.zero,
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -817,6 +803,6 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     final minutes = twoDigits(duration.inMinutes.remainder(60));
     final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return '$minutes:$seconds';
+    return '${duration.inHours > 0 ? '${twoDigits(duration.inHours)}:' : ''}$minutes:$seconds';
   }
 }

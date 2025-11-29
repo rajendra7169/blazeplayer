@@ -30,13 +30,19 @@ class MusicPlayerProvider extends ChangeNotifier {
     restoreRecentlyPlayedSongs();
   }
 
+  final ValueNotifier<Duration> positionNotifier = ValueNotifier(Duration.zero);
+  Timer? _positionDebounceTimer;
+
   void _initializeAudioService() {
     _audioService.initialize();
 
     // Listen to position changes
     _audioService.positionStream.listen((position) {
       _currentPosition = position;
-      notifyListeners();
+      if (_positionDebounceTimer?.isActive ?? false) return;
+      _positionDebounceTimer = Timer(const Duration(milliseconds: 200), () {
+        positionNotifier.value = position;
+      });
     });
 
     // Listen to playing state changes
@@ -252,7 +258,7 @@ class MusicPlayerProvider extends ChangeNotifier {
   Future<void> seekTo(Duration position) async {
     await _audioService.seekTo(position);
     _currentPosition = position;
-    notifyListeners();
+    positionNotifier.value = position;
   }
 
   void _handleSongCompleted() {
