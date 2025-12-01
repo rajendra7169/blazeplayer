@@ -9,6 +9,8 @@ class Song {
   final int playCount;
   final String? genre;
   final int dateAdded;
+  final int? trackNumber;
+  final String? customArtPath;
 
   Song({
     required this.id,
@@ -21,6 +23,8 @@ class Song {
     this.playCount = 0,
     this.genre,
     this.dateAdded = 0,
+    this.trackNumber,
+    this.customArtPath,
   });
 
   // Dummy songs for testing
@@ -60,5 +64,35 @@ class Song {
         genre: 'Pop',
       ),
     ];
+  }
+
+  Song copyWith({
+    String? id,
+    String? title,
+    String? artist,
+    String? album,
+    String? albumArt,
+    Duration? duration,
+    String? filePath,
+    int? playCount,
+    String? genre,
+    int? dateAdded,
+    int? trackNumber,
+    String? customArtPath,
+  }) {
+    return Song(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      album: album ?? this.album,
+      albumArt: albumArt ?? this.albumArt,
+      duration: duration ?? this.duration,
+      filePath: filePath ?? this.filePath,
+      playCount: playCount ?? this.playCount,
+      genre: genre ?? this.genre,
+      dateAdded: dateAdded ?? this.dateAdded,
+      trackNumber: trackNumber ?? this.trackNumber,
+      customArtPath: customArtPath ?? this.customArtPath,
+    );
   }
 }

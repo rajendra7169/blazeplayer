@@ -40,3 +40,15 @@ android {
 flutter {
     source = "../.."
 }
+
+repositories {
+    flatDir {
+        dirs("libs")
+    }
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation(files("libs/jaudiotagger-2.2.6-SNAPSHOT.jar"))
+}

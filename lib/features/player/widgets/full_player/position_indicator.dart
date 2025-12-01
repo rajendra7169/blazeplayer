@@ -11,8 +11,8 @@ class PositionIndicator extends StatelessWidget {
     required this.duration,
     required this.isDark,
     required this.onSeek,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

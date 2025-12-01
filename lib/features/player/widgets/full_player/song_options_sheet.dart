@@ -10,6 +10,7 @@ import 'cover_preview_sheet.dart';
 import 'in_app_webview_google_image.dart';
 import 'package:path_provider/path_provider.dart';
 import 'cover_cropper_screen.dart';
+import 'edit_tags_page.dart';
 
 class SongOptionsSheet extends StatefulWidget {
   final dynamic song;
@@ -204,37 +205,15 @@ class _SongOptionsSheetState extends State<SongOptionsSheet> {
                   });
                 }),
                 _buildOption(Icons.edit_rounded, 'Edit tags', () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      backgroundColor: isDark
-                          ? const Color(0xFF232323)
-                          : Colors.white,
-                      title: Text(
-                        'Edit Tags',
-                        style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
+                  Navigator.of(context).pop();
+                  Future.delayed(const Duration(milliseconds: 200), () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            EditTagsPage(song: song, isDark: isDark),
                       ),
-                      content: Text(
-                        'Song info fetch coming soon!',
-                        style: TextStyle(
-                          color: isDark ? Colors.white70 : Colors.black54,
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          child: Text(
-                            'Close',
-                            style: TextStyle(
-                              color: isDark ? Colors.white : Colors.black87,
-                            ),
-                          ),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ],
-                    ),
-                  );
+                    );
+                  });
                 }),
                 _buildOption(Icons.image_rounded, 'Change cover', () {
                   showModalBottomSheet(

@@ -78,10 +78,10 @@ class _AllSongsScreenState extends State<AllSongsScreen> {
               if (songs.isEmpty) {
                 return const Center(child: CircularProgressIndicator());
               }
-              // Remove setState from build
-              // if (_filteredSongs.isEmpty && songs.isNotEmpty) {
-              //   _applyFilter(songs);
-              // }
+              // Always re-apply filter when songs change
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _applyFilter(songs);
+              });
               return Column(
                 children: [
                   Padding(

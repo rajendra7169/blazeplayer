@@ -10,6 +10,10 @@ import 'core/theme/theme_notifier.dart';
 import 'core/utils/logger.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/player/providers/music_player_provider.dart';
+import 'features/player/models/song_model.dart';
+import 'features/player/widgets/full_player/in_app_webview_google_image.dart';
+import 'features/player/widgets/full_player/cover_preview_sheet.dart';
+import 'features/player/widgets/full_player/cover_cropper_screen.dart';
 import 'features/auth/screens/sign_in_screen.dart';
 import 'features/auth/screens/sign_up_screen.dart';
 import 'features/auth/screens/recovery_password_screen.dart';
@@ -70,6 +74,57 @@ class MyApp extends StatelessWidget {
               '/onboarding': (context) => const OnboardingScreen(),
               '/theme-mode': (context) => const ThemeModeScreen(),
               '/modern-onboarding': (context) => const ModernOnboardingScreen(),
+              '/changeCover': (context) {
+                final args = ModalRoute.of(context)?.settings.arguments;
+                if (args != null && args is Song) {
+                  final isDark =
+                      Theme.of(context).brightness == Brightness.dark;
+                  return InAppWebViewGoogleImage(
+                    query: args.title + ' Album cover',
+                    isDark: isDark,
+                    onImageSelected: (imageUrl) {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: isDark
+                            ? const Color(0xFF232323)
+                            : Colors.white,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(28),
+                          ),
+                        ),
+                        builder: (context) {
+                          return CoverPreviewSheet(
+                            imageUrl: imageUrl,
+                            isDark: isDark,
+                            onUse: () async {
+                              Navigator.of(context).pop();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => CoverCropperScreen(
+                                    imageUrl: imageUrl,
+                                    songId: args.id,
+                                    isDark: isDark,
+                                    onCropped: (croppedFile) async {
+                                      // Save cropped image and update provider
+                                      // You may want to refresh the UI after this
+                                      Navigator.of(context).pop();
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
+                  );
+                }
+                return const Scaffold(
+                  body: Center(child: Text('No song provided')),
+                );
+              },
             },
           );
         },

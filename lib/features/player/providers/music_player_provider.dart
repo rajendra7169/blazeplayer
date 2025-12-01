@@ -469,6 +469,54 @@ class MusicPlayerProvider extends ChangeNotifier {
         LocalStorageService.getString('custom_art_$songId');
   }
 
+  // Edit Tags: Update song info
+  void updateSongTags(
+    String songId, {
+    String? title,
+    String? album,
+    String? artist,
+    String? genre,
+    int? trackNumber,
+  }) {
+    final songIndex = _originalPlaylist.indexWhere((s) => s.id == songId);
+    if (songIndex != -1) {
+      final oldSong = _originalPlaylist[songIndex];
+      final updatedSong = oldSong.copyWith(
+        title: title ?? oldSong.title,
+        album: album ?? oldSong.album,
+        artist: artist ?? oldSong.artist,
+        genre: genre ?? oldSong.genre,
+        trackNumber: trackNumber ?? oldSong.trackNumber,
+      );
+      _originalPlaylist[songIndex] = updatedSong;
+      // Also update in playlist if present
+      final playIndex = _playlist.indexWhere((s) => s.id == songId);
+      if (playIndex != -1) {
+        _playlist[playIndex] = updatedSong;
+      }
+      // Also update in recently played songs if present
+      final recentIndex = _recentlyPlayedSongs.indexWhere(
+        (s) => s.id == songId,
+      );
+      if (recentIndex != -1) {
+        _recentlyPlayedSongs[recentIndex] = updatedSong;
+        saveRecentlyPlayedSongs(); // Persist the updated recently played list
+      }
+      // If current song, update reference
+      if (_currentSong?.id == songId) {
+        _currentSong = updatedSong;
+      }
+      notifyListeners();
+    }
+  }
+
+  // Edit Tags: Fetch song info stub
+  void fetchSongInfo(String songId) {
+    // TODO: Implement actual info fetch (e.g., from web or local DB)
+    // For now, just notify listeners
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _audioService.dispose();

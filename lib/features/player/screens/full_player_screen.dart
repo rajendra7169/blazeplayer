@@ -6,7 +6,6 @@ import '../providers/music_player_provider.dart';
 import '../widgets/cached_artwork_widget.dart';
 import '../widgets/artwork_color_builder.dart';
 import '../widgets/full_player/song_options_sheet.dart';
-import '../widgets/full_player/sleep_timer_sheet.dart';
 import 'lyrics_screen.dart';
 import '../models/song_model.dart';
 import '../widgets/full_player/position_indicator.dart';
@@ -20,7 +19,7 @@ class FullPlayerScreen extends StatefulWidget {
 
 class _FullPlayerScreenState extends State<FullPlayerScreen> {
   bool _isDragging = false;
-  double _dragPosition = 0.0;
+  final double _dragPosition = 0.0;
   double _verticalDragStart = 0.0;
   double _horizontalDragStart = 0.0;
 
