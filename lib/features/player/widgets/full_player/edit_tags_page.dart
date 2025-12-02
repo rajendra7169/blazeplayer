@@ -7,6 +7,7 @@ import 'package:on_audio_query/on_audio_query.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import '../cached_artwork_widget.dart';
 import '../../models/song_model.dart';
 import '../../providers/music_player_provider.dart';
@@ -103,12 +104,28 @@ class _EditTagsPageState extends State<EditTagsPage> {
                   borderRadius: BorderRadius.circular(18),
                   child:
                       latestCustomArtPath != null &&
-                          latestCustomArtPath.isNotEmpty
+                          latestCustomArtPath.isNotEmpty &&
+                          File(latestCustomArtPath).existsSync()
                       ? Image.file(
                           File(latestCustomArtPath),
                           width: 140,
                           height: 140,
                           fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                                width: 140,
+                                height: 140,
+                                color: isDark
+                                    ? Colors.grey[800]
+                                    : Colors.grey[300],
+                                child: Icon(
+                                  Icons.music_note_rounded,
+                                  color: isDark
+                                      ? Colors.white70
+                                      : Colors.black54,
+                                  size: 48,
+                                ),
+                              ),
                         )
                       : (song.albumArt != null
                             ? CachedArtworkWidget(
@@ -227,8 +244,9 @@ class _EditTagsPageState extends State<EditTagsPage> {
                                   : () async {
                                       setState(() => _isSaving = true);
                                       await _saveTags();
-                                      if (mounted)
+                                      if (mounted) {
                                         setState(() => _isSaving = false);
+                                      }
                                     },
                               child: AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 250),
@@ -384,10 +402,8 @@ class _EditTagsPageState extends State<EditTagsPage> {
             try {
               final artResponse = await http.get(Uri.parse(highResUrl));
               if (artResponse.statusCode == 200) {
-                final dir = await Directory.systemTemp.createTemp(
-                  'blazeplayer_art',
-                );
-                final filePath = '${dir.path}/itunes_art.jpg';
+                final dir = await getApplicationDocumentsDirectory();
+                final filePath = '${dir.path}/cover_${widget.song.id}.jpg';
                 final file = File(filePath);
                 await file.writeAsBytes(artResponse.bodyBytes);
                 artPath = filePath;

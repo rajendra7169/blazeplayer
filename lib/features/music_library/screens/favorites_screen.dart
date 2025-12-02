@@ -6,15 +6,16 @@ import '../../player/widgets/cached_artwork_widget.dart';
 import '../../player/widgets/mini_player.dart';
 import '../../player/widgets/modern_search_delegate.dart';
 import '../../player/models/song_model.dart';
+import 'add_songs_to_favorites_screen.dart';
 
-class RecentlyPlayedScreen extends StatefulWidget {
-  const RecentlyPlayedScreen({super.key});
+class FavoritesScreen extends StatefulWidget {
+  const FavoritesScreen({super.key});
 
   @override
-  State<RecentlyPlayedScreen> createState() => _RecentlyPlayedScreenState();
+  State<FavoritesScreen> createState() => _FavoritesScreenState();
 }
 
-class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
+class _FavoritesScreenState extends State<FavoritesScreen> {
   String _searchQuery = '';
   List<dynamic> _filteredSongs = [];
   final ScrollController _scrollController = ScrollController();
@@ -26,7 +27,7 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
       context,
       listen: false,
     );
-    _filteredSongs = playerProvider.recentlyPlayedSongs;
+    _filteredSongs = playerProvider.favoriteSongs;
   }
 
   @override
@@ -69,7 +70,7 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
         children: [
           Consumer<MusicPlayerProvider>(
             builder: (context, playerProvider, _) {
-              final songs = playerProvider.recentlyPlayedSongs;
+              final songs = playerProvider.favoriteSongs;
               if (_filteredSongs.isEmpty && songs.isNotEmpty) {
                 Future.microtask(() => _applyFilter(songs));
               }
@@ -94,7 +95,7 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
                                   borderRadius: BorderRadius.circular(24),
                                 ),
                                 child: Icon(
-                                  Icons.history_rounded,
+                                  Icons.favorite_rounded,
                                   color: accentColor,
                                   size: 72,
                                 ),
@@ -103,7 +104,7 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
                           ),
                           Center(
                             child: Text(
-                              'Recently Played',
+                              'Your Favorites',
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -128,10 +129,60 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
                                   ),
                                 ),
                                 const Spacer(),
-                                Icon(
-                                  Icons.select_all_rounded,
-                                  color: accentColor,
-                                  size: 24,
+                                IconButton(
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                      PageRouteBuilder(
+                                        pageBuilder:
+                                            (
+                                              context,
+                                              animation,
+                                              secondaryAnimation,
+                                            ) =>
+                                                const AddSongsToFavoritesScreen(),
+                                        transitionsBuilder:
+                                            (
+                                              context,
+                                              animation,
+                                              secondaryAnimation,
+                                              child,
+                                            ) {
+                                              const begin = Offset(1.0, 0.0);
+                                              const end = Offset.zero;
+                                              const curve = Curves.easeInOut;
+                                              var slideTween = Tween(
+                                                begin: begin,
+                                                end: end,
+                                              ).chain(CurveTween(curve: curve));
+                                              var fadeTween = Tween<double>(
+                                                begin: 0.0,
+                                                end: 1.0,
+                                              ).chain(CurveTween(curve: curve));
+                                              return SlideTransition(
+                                                position: animation.drive(
+                                                  slideTween,
+                                                ),
+                                                child: FadeTransition(
+                                                  opacity: animation.drive(
+                                                    fadeTween,
+                                                  ),
+                                                  child: child,
+                                                ),
+                                              );
+                                            },
+                                        transitionDuration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        reverseTransitionDuration:
+                                            const Duration(milliseconds: 300),
+                                      ),
+                                    );
+                                  },
+                                  icon: Icon(
+                                    Icons.add_circle_outline_rounded,
+                                    color: accentColor,
+                                    size: 28,
+                                  ),
                                 ),
                               ],
                             ),
@@ -231,125 +282,170 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
                               ],
                             ),
                           ),
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: NeverScrollableScrollPhysics(),
-                            padding: const EdgeInsets.only(top: 8, bottom: 100),
-                            itemCount: _filteredSongs.length,
-                            itemBuilder: (context, index) {
-                              final song = _filteredSongs[index];
-                              return ListTile(
-                                leading: ClipRRect(
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Selector<MusicPlayerProvider, String?>(
-                                    selector: (_, provider) =>
-                                        provider.getCustomArtForSong(
-                                          song.id.toString(),
-                                        ),
-                                    builder: (context, customArtPath, _) {
-                                      if (customArtPath != null &&
-                                          customArtPath.isNotEmpty) {
-                                        return Image.file(
-                                          File(customArtPath),
-                                          fit: BoxFit.cover,
-                                          width: 56,
-                                          height: 56,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  Container(
-                                                    width: 56,
-                                                    height: 56,
-                                                    decoration: BoxDecoration(
-                                                      color: isDark
-                                                          ? Colors.white12
-                                                          : Colors.grey[300],
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            16,
-                                                          ),
-                                                    ),
-                                                    child: Icon(
-                                                      Icons.music_note_rounded,
-                                                      color: isDark
-                                                          ? Colors.white30
-                                                          : Colors.grey[600],
-                                                      size: 32,
-                                                    ),
-                                                  ),
-                                        );
-                                      } else {
-                                        return CachedArtworkWidget(
-                                          songId: song.id.toString(),
-                                          width: 56,
-                                          height: 56,
-                                          fit: BoxFit.cover,
-                                          borderRadius: BorderRadius.circular(
-                                            16,
+                          if (_filteredSongs.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 60),
+                              child: Center(
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.favorite_border_rounded,
+                                      color: isDark
+                                          ? Colors.white38
+                                          : Colors.black38,
+                                      size: 80,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'No Favorite Songs',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? Colors.white60
+                                            : Colors.black54,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Add songs to favorites to see them here',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: isDark
+                                            ? Colors.white38
+                                            : Colors.black38,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else
+                            ListView.builder(
+                              shrinkWrap: true,
+                              physics: NeverScrollableScrollPhysics(),
+                              padding: const EdgeInsets.only(
+                                top: 8,
+                                bottom: 100,
+                              ),
+                              itemCount: _filteredSongs.length,
+                              itemBuilder: (context, index) {
+                                final song = _filteredSongs[index];
+                                return ListTile(
+                                  leading: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Selector<MusicPlayerProvider, String?>(
+                                      selector: (_, provider) =>
+                                          provider.getCustomArtForSong(
+                                            song.id.toString(),
                                           ),
-                                          fallback: Container(
+                                      builder: (context, customArtPath, _) {
+                                        if (customArtPath != null &&
+                                            customArtPath.isNotEmpty) {
+                                          return Image.file(
+                                            File(customArtPath),
+                                            fit: BoxFit.cover,
                                             width: 56,
                                             height: 56,
-                                            decoration: BoxDecoration(
-                                              color: isDark
-                                                  ? Colors.white12
-                                                  : Colors.grey[300],
-                                              borderRadius:
-                                                  BorderRadius.circular(16),
+                                            errorBuilder:
+                                                (
+                                                  context,
+                                                  error,
+                                                  stackTrace,
+                                                ) => Container(
+                                                  width: 56,
+                                                  height: 56,
+                                                  decoration: BoxDecoration(
+                                                    color: isDark
+                                                        ? Colors.white12
+                                                        : Colors.grey[300],
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          16,
+                                                        ),
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.music_note_rounded,
+                                                    color: isDark
+                                                        ? Colors.white30
+                                                        : Colors.grey[600],
+                                                    size: 32,
+                                                  ),
+                                                ),
+                                          );
+                                        } else {
+                                          return CachedArtworkWidget(
+                                            songId: song.id.toString(),
+                                            width: 56,
+                                            height: 56,
+                                            fit: BoxFit.cover,
+                                            borderRadius: BorderRadius.circular(
+                                              16,
                                             ),
-                                            child: Icon(
-                                              Icons.music_note_rounded,
-                                              color: isDark
-                                                  ? Colors.white30
-                                                  : Colors.grey[600],
-                                              size: 32,
+                                            fallback: Container(
+                                              width: 56,
+                                              height: 56,
+                                              decoration: BoxDecoration(
+                                                color: isDark
+                                                    ? Colors.white12
+                                                    : Colors.grey[300],
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                              ),
+                                              child: Icon(
+                                                Icons.music_note_rounded,
+                                                color: isDark
+                                                    ? Colors.white30
+                                                    : Colors.grey[600],
+                                                size: 32,
+                                              ),
                                             ),
-                                          ),
-                                        );
-                                      }
+                                          );
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  title: Text(
+                                    song.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    song.artist,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white60
+                                          : Colors.black54,
+                                    ),
+                                  ),
+                                  trailing: IconButton(
+                                    icon: Icon(
+                                      Icons.more_vert_rounded,
+                                      color: isDark
+                                          ? Colors.white54
+                                          : Colors.black45,
+                                    ),
+                                    onPressed: () {
+                                      // TODO: Show more options for song
                                     },
                                   ),
-                                ),
-                                title: Text(
-                                  song.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark
-                                        ? Colors.white
-                                        : Colors.black87,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  song.artist,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: isDark
-                                        ? Colors.white60
-                                        : Colors.black54,
-                                  ),
-                                ),
-                                trailing: IconButton(
-                                  icon: Icon(
-                                    Icons.more_vert_rounded,
-                                    color: isDark
-                                        ? Colors.white54
-                                        : Colors.black45,
-                                  ),
-                                  onPressed: () {
-                                    // TODO: Show more options for song
+                                  onTap: () {
+                                    Provider.of<MusicPlayerProvider>(
+                                      context,
+                                      listen: false,
+                                    ).playSong(song);
                                   },
-                                ),
-                                onTap: () {
-                                  Provider.of<MusicPlayerProvider>(
-                                    context,
-                                    listen: false,
-                                  ).playSong(song);
-                                },
-                              );
-                            },
-                          ),
+                                );
+                              },
+                            ),
                         ],
                       ),
                     ),
@@ -410,7 +506,7 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
                           showSearch(
                             context: context,
                             delegate: ModernSearchDelegate<dynamic>(
-                              items: playerProvider.recentlyPlayedSongs,
+                              items: playerProvider.favoriteSongs,
                               getTitle: (song) => song.title,
                               getSubtitle: (song) => song.artist,
                               getAlbum: (song) => song.album,
@@ -424,9 +520,7 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
                               },
                               onQueryChanged: (query) {
                                 setState(() => _searchQuery = query);
-                                _applyFilter(
-                                  playerProvider.recentlyPlayedSongs,
-                                );
+                                _applyFilter(playerProvider.favoriteSongs);
                               },
                             ),
                           );

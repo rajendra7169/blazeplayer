@@ -1,14 +1,23 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import '../models/song_model.dart';
+import '../models/album_model.dart';
 import '../services/audio_player_service.dart';
 import 'package:blazeplayer/core/services/local_storage_service.dart';
 
 class MusicPlayerProvider extends ChangeNotifier {
+  /// Shuffle the given list and play a random song
+  Future<void> shuffleAndPlay(List<Song> songs) async {
+    if (songs.isEmpty) return;
+    final shuffled = List<Song>.from(songs)..shuffle();
+    await playSong(shuffled.first);
+  }
+
   final AudioPlayerService _audioService = AudioPlayerService();
   final OnAudioQuery _audioQuery = OnAudioQuery();
 
@@ -20,14 +29,17 @@ class MusicPlayerProvider extends ChangeNotifier {
   List<Song> _playlist = [];
   List<Song> _originalPlaylist = [];
   List<Song> _recentlyPlayedSongs = [];
+  Set<String> _favoriteSongIds = {}; // Track favorite song IDs
   final Map<String, int> _songPlayCounts = {};
   final Map<String, String> _customArtPaths = {};
 
   static const _recentlyPlayedKey = 'recently_played_songs';
+  static const _favoriteSongsKey = 'favorite_songs';
 
   MusicPlayerProvider() {
     _initializeAudioService();
     restoreRecentlyPlayedSongs();
+    restoreFavoriteSongs();
   }
 
   final ValueNotifier<Duration> positionNotifier = ValueNotifier(Duration.zero);
@@ -68,6 +80,38 @@ class MusicPlayerProvider extends ChangeNotifier {
   Duration? get duration => _audioService.duration;
   List<Song> get recentlyPlayedSongs => List.unmodifiable(_recentlyPlayedSongs);
   List<Song> get allSongs => List.unmodifiable(_originalPlaylist);
+
+  List<Album> get allAlbums {
+    // Group songs by album name
+    final Map<String, List<Song>> albumMap = {};
+    for (final song in _originalPlaylist) {
+      final albumName = song.album.isNotEmpty ? song.album : 'Unknown Album';
+      albumMap.putIfAbsent(albumName, () => []).add(song);
+    }
+    // Create Album objects
+    return albumMap.entries
+        .map(
+          (entry) => Album(
+            id: entry.key,
+            name: entry.key,
+            songCount: entry.value.length,
+          ),
+        )
+        .toList();
+  }
+
+  List<String> getAlbumArtImages(String albumId, {int maxCount = 4}) {
+    // Find songs in this album
+    final songs = _originalPlaylist.where((s) => s.album == albumId).toList();
+    if (songs.isEmpty) return [''];
+
+    // Return just the first song's ID for single artwork display
+    return [songs[0].id];
+  }
+
+  List<Song> getSongsForAlbum(String albumId) {
+    return _originalPlaylist.where((s) => s.album == albumId).toList();
+  }
 
   List<Song> get recommendedSongs {
     // Recommend by most played
@@ -197,6 +241,40 @@ class MusicPlayerProvider extends ChangeNotifier {
       }
       notifyListeners();
     }
+  }
+
+  Future<void> saveFavoriteSongs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_favoriteSongsKey, _favoriteSongIds.toList());
+  }
+
+  Future<void> restoreFavoriteSongs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final favoriteIds = prefs.getStringList(_favoriteSongsKey);
+    if (favoriteIds != null) {
+      _favoriteSongIds = favoriteIds.toSet();
+      notifyListeners();
+    }
+  }
+
+  void toggleFavorite(String songId) {
+    if (_favoriteSongIds.contains(songId)) {
+      _favoriteSongIds.remove(songId);
+    } else {
+      _favoriteSongIds.add(songId);
+    }
+    saveFavoriteSongs();
+    notifyListeners();
+  }
+
+  bool isFavorite(String songId) {
+    return _favoriteSongIds.contains(songId);
+  }
+
+  List<Song> get favoriteSongs {
+    return _originalPlaylist
+        .where((song) => _favoriteSongIds.contains(song.id))
+        .toList();
   }
 
   void preloadCustomArtPaths() {
@@ -456,6 +534,7 @@ class MusicPlayerProvider extends ChangeNotifier {
       await LocalStorageService.init();
     }
     _customArtPath = imagePath;
+    _customArtPaths[songId] = imagePath; // Update the map cache
     await LocalStorageService.setString('custom_art_$songId', imagePath);
     notifyListeners();
   }
@@ -465,8 +544,22 @@ class MusicPlayerProvider extends ChangeNotifier {
       LocalStorageService.init();
     }
     // Prefer cached value if available
-    return _customArtPaths[songId] ??
+    final artPath =
+        _customArtPaths[songId] ??
         LocalStorageService.getString('custom_art_$songId');
+
+    // Validate that the file exists, if not return null
+    if (artPath != null && artPath.isNotEmpty) {
+      if (File(artPath).existsSync()) {
+        return artPath;
+      } else {
+        // File doesn't exist, clean up the invalid path
+        _customArtPaths.remove(songId);
+        LocalStorageService.remove('custom_art_$songId');
+        return null;
+      }
+    }
+    return null;
   }
 
   // Edit Tags: Update song info

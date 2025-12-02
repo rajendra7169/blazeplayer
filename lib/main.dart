@@ -80,7 +80,7 @@ class MyApp extends StatelessWidget {
                   final isDark =
                       Theme.of(context).brightness == Brightness.dark;
                   return InAppWebViewGoogleImage(
-                    query: args.title + ' Album cover',
+                    query: '${args.title} Album cover',
                     isDark: isDark,
                     onImageSelected: (imageUrl) {
                       showModalBottomSheet(

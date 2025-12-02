@@ -115,22 +115,23 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
           Navigator.of(context).pop();
           return const SizedBox.shrink();
         }
+        double dragDistance = 0.0;
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onVerticalDragStart: (details) {
             _verticalDragStart = details.globalPosition.dy;
+            dragDistance = 0.0;
           },
           onVerticalDragUpdate: (details) {
-            final delta = details.globalPosition.dy - _verticalDragStart;
-            if (delta.abs() > 10) {
-              setState(() {});
-            }
+            dragDistance = details.globalPosition.dy - _verticalDragStart;
           },
           onVerticalDragEnd: (details) {
-            final velocity = details.primaryVelocity ?? 0;
-            if (velocity > 300) {
+            // Thresholds for swipe actions
+            const closeThreshold = 80.0;
+            const lyricsThreshold = -80.0;
+            if (dragDistance > closeThreshold) {
               Navigator.of(context).pop();
-            } else if (velocity < -300) {
+            } else if (dragDistance < lyricsThreshold) {
               Navigator.of(context).push(
                 PageRouteBuilder(
                   pageBuilder: (context, animation, secondaryAnimation) =>
@@ -279,12 +280,35 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                                   letterSpacing: 0.5,
                                 ),
                               ),
-                              Text(
-                                currentSong.album,
-                                style: TextStyle(
-                                  color: isDark ? Colors.white : Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
+                              SizedBox(
+                                height: 22,
+                                width: 200, // was 140, now more space
+                                child: ShaderMask(
+                                  shaderCallback: (Rect bounds) {
+                                    return LinearGradient(
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                      colors: [
+                                        Colors.transparent,
+                                        Colors.white,
+                                        Colors.white,
+                                        Colors.transparent,
+                                      ],
+                                      stops: const [0.0, 0.08, 0.92, 1.0],
+                                    ).createShader(bounds);
+                                  },
+                                  blendMode: BlendMode.dstIn,
+                                  child: _MarqueeText(
+                                    text: currentSong.album ?? '',
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    velocity: 32.0,
+                                  ),
                                 ),
                               ),
                             ],
@@ -425,7 +449,7 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                                             ),
                                           );
                                         }
-                                      })(),
+                                      }()),
                                     ),
                                   ),
                                 ),
@@ -456,7 +480,7 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                                         color: isDark
                                             ? Colors.white
                                             : Colors.white,
-                                        fontSize: 22,
+                                        fontSize: 18, // reduced from 22
                                         fontWeight: FontWeight.bold,
                                       ),
                                       maxLines: 1,
@@ -471,7 +495,7 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                                                     ? Colors.white
                                                     : Colors.white)
                                                 .withOpacity(0.7),
-                                        fontSize: 18,
+                                        fontSize: 15, // reduced from 18
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -481,15 +505,26 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                               ),
                               Row(
                                 children: [
-                                  IconButton(
-                                    onPressed: () {},
-                                    icon: Icon(
-                                      Icons.star_border_rounded,
-                                      color: isDark
-                                          ? Colors.white
-                                          : Colors.white,
-                                      size: 26,
-                                    ),
+                                  Selector<MusicPlayerProvider, bool>(
+                                    selector: (_, provider) =>
+                                        provider.isFavorite(currentSong.id),
+                                    builder: (context, isFavorite, _) {
+                                      return IconButton(
+                                        onPressed: () {
+                                          Provider.of<MusicPlayerProvider>(
+                                            context,
+                                            listen: false,
+                                          ).toggleFavorite(currentSong.id);
+                                        },
+                                        icon: Icon(
+                                          isFavorite
+                                              ? Icons.favorite_rounded
+                                              : Icons.favorite_border_rounded,
+                                          color: Colors.white,
+                                          size: 26,
+                                        ),
+                                      );
+                                    },
                                   ),
                                   IconButton(
                                     onPressed: () {
@@ -516,7 +551,7 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                                       );
                                     },
                                     icon: Icon(
-                                      Icons.more_horiz_rounded,
+                                      Icons.more_vert_rounded,
                                       color: isDark
                                           ? Colors.white
                                           : Colors.white,
@@ -803,5 +838,136 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
     final minutes = twoDigits(duration.inMinutes.remainder(60));
     final seconds = twoDigits(duration.inSeconds.remainder(60));
     return '${duration.inHours > 0 ? '${twoDigits(duration.inHours)}:' : ''}$minutes:$seconds';
+  }
+}
+
+class _MarqueeText extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+  final double velocity;
+
+  const _MarqueeText({
+    Key? key,
+    required this.text,
+    required this.style,
+    this.velocity = 32.0,
+  }) : super(key: key);
+
+  @override
+  State<_MarqueeText> createState() => _MarqueeTextState();
+}
+
+class _MarqueeTextState extends State<_MarqueeText>
+    with SingleTickerProviderStateMixin {
+  late final ScrollController _scrollController;
+  late final AnimationController _controller;
+  double _textWidth = 0;
+  double _containerWidth = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startMarquee());
+  }
+
+  @override
+  void didUpdateWidget(covariant _MarqueeText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text) {
+      // Reset scroll position and restart animation when text changes
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(0);
+        }
+        _startMarquee();
+      });
+    }
+  }
+
+  void _startMarquee() async {
+    setState(() {});
+    await Future.delayed(const Duration(milliseconds: 100));
+    final RenderBox? textBox = context.findRenderObject() as RenderBox?;
+    if (textBox != null) {
+      _containerWidth = textBox.size.width;
+    }
+    final painter = TextPainter(
+      text: TextSpan(text: widget.text, style: widget.style),
+      maxLines: 1,
+      textDirection: TextDirection.ltr,
+    )..layout();
+    _textWidth = painter.width;
+    if (_textWidth > _containerWidth) {
+      final distance = _textWidth - _containerWidth;
+      while (mounted) {
+        await _scrollController.animateTo(
+          distance,
+          duration: Duration(
+            milliseconds: (distance / widget.velocity * 1000).toInt(),
+          ),
+          curve: Curves.linear,
+        );
+        await Future.delayed(const Duration(milliseconds: 800));
+        await _scrollController.animateTo(
+          0,
+          duration: Duration(
+            milliseconds: (distance / widget.velocity * 1000).toInt(),
+          ),
+          curve: Curves.linear,
+        );
+        await Future.delayed(const Duration(milliseconds: 800));
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _containerWidth = constraints.maxWidth;
+        final painter = TextPainter(
+          text: TextSpan(text: widget.text, style: widget.style),
+          maxLines: 1,
+          textDirection: TextDirection.ltr,
+        )..layout();
+        final textWidth = painter.width;
+
+        // If text fits, center it; otherwise scroll
+        if (textWidth <= _containerWidth) {
+          return Center(
+            child: Text(
+              widget.text,
+              style: widget.style,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+        } else {
+          return SingleChildScrollView(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            child: Text(
+              widget.text,
+              style: widget.style,
+              maxLines: 1,
+              overflow: TextOverflow.visible,
+            ),
+          );
+        }
+      },
+    );
   }
 }

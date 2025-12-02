@@ -25,33 +25,27 @@ class CachedArtworkWidget extends StatefulWidget {
 
 class _CachedArtworkWidgetState extends State<CachedArtworkWidget> {
   static final Map<String, ImageProvider?> _imageCache = {};
-  ImageProvider? _imageProvider;
-  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadArtwork();
+    // Only load if not in cache
+    if (!_imageCache.containsKey(widget.songId)) {
+      _loadArtwork();
+    }
   }
 
   @override
   void didUpdateWidget(CachedArtworkWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.songId != widget.songId) {
-      _loadArtwork();
+      if (!_imageCache.containsKey(widget.songId)) {
+        _loadArtwork();
+      }
     }
   }
 
   Future<void> _loadArtwork() async {
-    // Check cache first
-    if (_imageCache.containsKey(widget.songId)) {
-      setState(() {
-        _imageProvider = _imageCache[widget.songId];
-        _isLoading = false;
-      });
-      return;
-    }
-
     try {
       final audioQuery = OnAudioQuery();
       final artwork = await audioQuery.queryArtwork(
@@ -62,29 +56,39 @@ class _CachedArtworkWidgetState extends State<CachedArtworkWidget> {
       );
 
       if (artwork != null && mounted) {
-        _imageProvider = MemoryImage(artwork);
-        _imageCache[widget.songId] = _imageProvider;
+        final imageProvider = MemoryImage(artwork);
+        _imageCache[widget.songId] = imageProvider;
+        setState(() {});
+      } else if (mounted) {
+        _imageCache[widget.songId] = null;
+        setState(() {});
       }
     } catch (e) {
-      _imageProvider = null;
-      _imageCache[widget.songId] = null;
-    }
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        _imageCache[widget.songId] = null;
+        setState(() {});
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading || _imageProvider == null) {
+    // Check cache synchronously - this prevents placeholder flashing
+    final cachedImage = _imageCache[widget.songId];
+
+    if (cachedImage == null && !_imageCache.containsKey(widget.songId)) {
+      // Still loading, show fallback
       return widget.fallback;
     }
 
+    if (cachedImage == null) {
+      // Cached as null (no artwork), show fallback
+      return widget.fallback;
+    }
+
+    // Cached image exists, display it
     Widget imageWidget = Image(
-      image: _imageProvider!,
+      image: cachedImage,
       fit: widget.fit,
       width: widget.width,
       height: widget.height,

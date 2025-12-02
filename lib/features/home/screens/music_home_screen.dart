@@ -11,6 +11,8 @@ import '../../player/widgets/mini_player.dart';
 import '../../music_library/screens/recently_played_screen.dart';
 import '../../music_library/screens/recommended_songs_screen.dart';
 import '../../music_library/screens/all_songs_screen.dart';
+import '../../music_library/screens/albums_screen.dart';
+import '../../music_library/screens/favorites_screen.dart';
 import '../../../main.dart' show themeNotifier;
 import '../../search/music_search_delegate.dart';
 
@@ -429,8 +431,42 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                         title: 'Recently Played',
                         onSeeAllTap: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => RecentlyPlayedScreen(),
+                            PageRouteBuilder(
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) =>
+                                      RecentlyPlayedScreen(),
+                              transitionsBuilder:
+                                  (
+                                    context,
+                                    animation,
+                                    secondaryAnimation,
+                                    child,
+                                  ) {
+                                    const begin = Offset(1.0, 0.0);
+                                    const end = Offset.zero;
+                                    const curve = Curves.easeInOut;
+                                    var slideTween = Tween(
+                                      begin: begin,
+                                      end: end,
+                                    ).chain(CurveTween(curve: curve));
+                                    var fadeTween = Tween<double>(
+                                      begin: 0.0,
+                                      end: 1.0,
+                                    ).chain(CurveTween(curve: curve));
+                                    return SlideTransition(
+                                      position: animation.drive(slideTween),
+                                      child: FadeTransition(
+                                        opacity: animation.drive(fadeTween),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                              transitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
+                              reverseTransitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
                             ),
                           );
                         },
@@ -488,8 +524,42 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                         title: 'Recommended for You',
                         onSeeAllTap: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => RecommendedSongsScreen(),
+                            PageRouteBuilder(
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) =>
+                                      RecommendedSongsScreen(),
+                              transitionsBuilder:
+                                  (
+                                    context,
+                                    animation,
+                                    secondaryAnimation,
+                                    child,
+                                  ) {
+                                    const begin = Offset(1.0, 0.0);
+                                    const end = Offset.zero;
+                                    const curve = Curves.easeInOut;
+                                    var slideTween = Tween(
+                                      begin: begin,
+                                      end: end,
+                                    ).chain(CurveTween(curve: curve));
+                                    var fadeTween = Tween<double>(
+                                      begin: 0.0,
+                                      end: 1.0,
+                                    ).chain(CurveTween(curve: curve));
+                                    return SlideTransition(
+                                      position: animation.drive(slideTween),
+                                      child: FadeTransition(
+                                        opacity: animation.drive(fadeTween),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                              transitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
+                              reverseTransitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
                             ),
                           );
                         },
@@ -548,8 +618,124 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                       CategoryGrid(
                         onSongsTap: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => const AllSongsScreen(),
+                            PageRouteBuilder(
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) =>
+                                      const AllSongsScreen(),
+                              transitionsBuilder:
+                                  (
+                                    context,
+                                    animation,
+                                    secondaryAnimation,
+                                    child,
+                                  ) {
+                                    const begin = Offset(1.0, 0.0);
+                                    const end = Offset.zero;
+                                    const curve = Curves.easeInOut;
+                                    var slideTween = Tween(
+                                      begin: begin,
+                                      end: end,
+                                    ).chain(CurveTween(curve: curve));
+                                    var fadeTween = Tween<double>(
+                                      begin: 0.0,
+                                      end: 1.0,
+                                    ).chain(CurveTween(curve: curve));
+                                    return SlideTransition(
+                                      position: animation.drive(slideTween),
+                                      child: FadeTransition(
+                                        opacity: animation.drive(fadeTween),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                              transitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
+                              reverseTransitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
+                            ),
+                          );
+                        },
+                        onAlbumsTap: () {
+                          Navigator.of(context).push(
+                            PageRouteBuilder(
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) =>
+                                      const AlbumsScreen(),
+                              transitionsBuilder:
+                                  (
+                                    context,
+                                    animation,
+                                    secondaryAnimation,
+                                    child,
+                                  ) {
+                                    const begin = Offset(1.0, 0.0);
+                                    const end = Offset.zero;
+                                    const curve = Curves.easeInOut;
+                                    var slideTween = Tween(
+                                      begin: begin,
+                                      end: end,
+                                    ).chain(CurveTween(curve: curve));
+                                    var fadeTween = Tween<double>(
+                                      begin: 0.0,
+                                      end: 1.0,
+                                    ).chain(CurveTween(curve: curve));
+                                    return SlideTransition(
+                                      position: animation.drive(slideTween),
+                                      child: FadeTransition(
+                                        opacity: animation.drive(fadeTween),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                              transitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
+                              reverseTransitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
+                            ),
+                          );
+                        },
+                        onFavoritesTap: () {
+                          Navigator.of(context).push(
+                            PageRouteBuilder(
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) =>
+                                      const FavoritesScreen(),
+                              transitionsBuilder:
+                                  (
+                                    context,
+                                    animation,
+                                    secondaryAnimation,
+                                    child,
+                                  ) {
+                                    const begin = Offset(1.0, 0.0);
+                                    const end = Offset.zero;
+                                    const curve = Curves.easeInOut;
+                                    var slideTween = Tween(
+                                      begin: begin,
+                                      end: end,
+                                    ).chain(CurveTween(curve: curve));
+                                    var fadeTween = Tween<double>(
+                                      begin: 0.0,
+                                      end: 1.0,
+                                    ).chain(CurveTween(curve: curve));
+                                    return SlideTransition(
+                                      position: animation.drive(slideTween),
+                                      child: FadeTransition(
+                                        opacity: animation.drive(fadeTween),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                              transitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
+                              reverseTransitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
                             ),
                           );
                         },

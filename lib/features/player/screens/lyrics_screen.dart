@@ -503,12 +503,25 @@ class _LyricsScreenState extends State<LyricsScreen> {
                       ),
                     ),
                     // Favorite Icon
-                    IconButton(
-                      onPressed: () {},
-                      icon: Icon(
-                        Icons.favorite_border_rounded,
-                        color: isDark ? Colors.white : Colors.white,
-                      ),
+                    Selector<MusicPlayerProvider, bool>(
+                      selector: (_, provider) =>
+                          provider.isFavorite(currentSong.id),
+                      builder: (context, isFavorite, _) {
+                        return IconButton(
+                          onPressed: () {
+                            Provider.of<MusicPlayerProvider>(
+                              context,
+                              listen: false,
+                            ).toggleFavorite(currentSong.id);
+                          },
+                          icon: Icon(
+                            isFavorite
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

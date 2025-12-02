@@ -25,10 +25,8 @@ class PositionIndicator extends StatelessWidget {
               .toDouble(),
           min: 0.0,
           max: duration.inMilliseconds.toDouble(),
-          activeColor: isDark
-              ? const Color(0xFFFFA726)
-              : const Color(0xFFFF7043),
-          inactiveColor: isDark ? Colors.white24 : Colors.black12,
+          activeColor: Colors.white,
+          inactiveColor: Colors.white24,
           onChanged: onSeek,
         );
       },
