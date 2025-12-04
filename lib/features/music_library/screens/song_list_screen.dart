@@ -168,10 +168,12 @@ class _SongListScreenState extends State<SongListScreen> {
                                 ),
                                 onPressed: () {
                                   if (_filteredSongs.isNotEmpty) {
-                                    Provider.of<MusicPlayerProvider>(
-                                      context,
-                                      listen: false,
-                                    ).shuffleAndPlay(
+                                    final provider =
+                                        Provider.of<MusicPlayerProvider>(
+                                          context,
+                                          listen: false,
+                                        );
+                                    provider.shuffleAndPlay(
                                       _filteredSongs.cast<Song>(),
                                     );
                                   }
@@ -211,10 +213,15 @@ class _SongListScreenState extends State<SongListScreen> {
                                 ),
                                 onPressed: () {
                                   if (_filteredSongs.isNotEmpty) {
-                                    Provider.of<MusicPlayerProvider>(
-                                      context,
-                                      listen: false,
-                                    ).playSong(_filteredSongs.first);
+                                    final provider =
+                                        Provider.of<MusicPlayerProvider>(
+                                          context,
+                                          listen: false,
+                                        );
+                                    provider.setPlaylist(
+                                      _filteredSongs.cast<Song>(),
+                                    );
+                                    provider.playSong(_filteredSongs.first);
                                   }
                                 },
                                 child: Row(
@@ -341,7 +348,7 @@ class _SongListScreenState extends State<SongListScreen> {
                               onPressed: () {
                                 showModalBottomSheet(
                                   context: context,
-                                  builder: (context) => Container(
+                                  builder: (context) => SizedBox(
                                     height: 180,
                                     child: Center(
                                       child: Text(
@@ -353,10 +360,14 @@ class _SongListScreenState extends State<SongListScreen> {
                               },
                             ),
                             onTap: () {
-                              Provider.of<MusicPlayerProvider>(
+                              final provider = Provider.of<MusicPlayerProvider>(
                                 context,
                                 listen: false,
-                              ).playSong(song);
+                              );
+                              provider.playWithContext(
+                                song,
+                                _filteredSongs.cast<Song>(),
+                              );
                             },
                           );
                         },
@@ -423,10 +434,15 @@ class _SongListScreenState extends State<SongListScreen> {
                                 getArtist: (song) => song.artist,
                                 getType: (song) => 'song',
                                 onItemTap: (song) {
-                                  Provider.of<MusicPlayerProvider>(
-                                    context,
-                                    listen: false,
-                                  ).playSong(song);
+                                  final provider =
+                                      Provider.of<MusicPlayerProvider>(
+                                        context,
+                                        listen: false,
+                                      );
+                                  provider.playWithContext(
+                                    song,
+                                    widget.songs.cast<Song>(),
+                                  );
                                 },
                                 onQueryChanged: (query) {
                                   setState(() => _searchQuery = query);

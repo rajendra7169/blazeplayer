@@ -293,10 +293,15 @@ class _AddSongsToFavoritesScreenState extends State<AddSongsToFavoritesScreen> {
                                       },
                                     ),
                                     onTap: () {
-                                      Provider.of<MusicPlayerProvider>(
-                                        context,
-                                        listen: false,
-                                      ).playSong(song);
+                                      final provider =
+                                          Provider.of<MusicPlayerProvider>(
+                                            context,
+                                            listen: false,
+                                          );
+                                      provider.playWithContext(
+                                        song,
+                                        provider.allSongs,
+                                      );
                                     },
                                   ),
                                 );

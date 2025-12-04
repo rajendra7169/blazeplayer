@@ -183,10 +183,11 @@ class SongSearchDelegate extends SearchDelegate<dynamic> {
               },
             ),
             onTap: () {
-              Provider.of<MusicPlayerProvider>(
+              final provider = Provider.of<MusicPlayerProvider>(
                 context,
                 listen: false,
-              ).playSong(song);
+              );
+              provider.playWithContext(song, songs.cast());
               close(context, song);
             },
           ),
@@ -315,10 +316,11 @@ class SongSearchDelegate extends SearchDelegate<dynamic> {
               },
             ),
             onTap: () {
-              Provider.of<MusicPlayerProvider>(
+              final provider = Provider.of<MusicPlayerProvider>(
                 context,
                 listen: false,
-              ).playSong(song);
+              );
+              provider.playWithContext(song, songs.cast());
               close(context, song);
             },
           ),

@@ -121,7 +121,10 @@ class MusicSearchDelegate extends SearchDelegate {
                   );
                   return GestureDetector(
                     onTap: () {
-                      playerProvider.playSong(song);
+                      playerProvider.playWithContext(
+                        song,
+                        playerProvider.allSongs,
+                      );
                     },
                     child: Padding(
                       padding: const EdgeInsets.only(right: 16),
@@ -249,7 +252,7 @@ class MusicSearchDelegate extends SearchDelegate {
                   }
                   await _saveRecentSearches();
                 }
-                playerProvider.playSong(song);
+                playerProvider.playWithContext(song, playerProvider.allSongs);
                 close(context, song);
               },
             ),

@@ -13,6 +13,8 @@ import '../../music_library/screens/recommended_songs_screen.dart';
 import '../../music_library/screens/all_songs_screen.dart';
 import '../../music_library/screens/albums_screen.dart';
 import '../../music_library/screens/favorites_screen.dart';
+import '../../music_library/screens/artists_screen.dart';
+import '../../music_library/screens/playlist_screen.dart';
 import '../../../main.dart' show themeNotifier;
 import '../../search/music_search_delegate.dart';
 
@@ -502,7 +504,10 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                                     subtitle: song.artist,
                                     songId: int.tryParse(song.id),
                                     onTap: () {
-                                      playerProvider.playSong(song);
+                                      playerProvider.playWithContext(
+                                        song,
+                                        songs,
+                                      );
                                     },
                                   ),
                                 );
@@ -594,7 +599,7 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                                   subtitle: song.artist,
                                   songId: int.tryParse(song.id),
                                   onTap: () {
-                                    playerProvider.playSong(song);
+                                    playerProvider.playWithContext(song, songs);
                                   },
                                 );
                               },
@@ -698,12 +703,94 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                             ),
                           );
                         },
+                        onArtistsTap: () {
+                          Navigator.of(context).push(
+                            PageRouteBuilder(
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) =>
+                                      const ArtistsScreen(),
+                              transitionsBuilder:
+                                  (
+                                    context,
+                                    animation,
+                                    secondaryAnimation,
+                                    child,
+                                  ) {
+                                    const begin = Offset(1.0, 0.0);
+                                    const end = Offset.zero;
+                                    const curve = Curves.easeInOut;
+                                    var slideTween = Tween(
+                                      begin: begin,
+                                      end: end,
+                                    ).chain(CurveTween(curve: curve));
+                                    var fadeTween = Tween<double>(
+                                      begin: 0.0,
+                                      end: 1.0,
+                                    ).chain(CurveTween(curve: curve));
+                                    return SlideTransition(
+                                      position: animation.drive(slideTween),
+                                      child: FadeTransition(
+                                        opacity: animation.drive(fadeTween),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                              transitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
+                              reverseTransitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
+                            ),
+                          );
+                        },
                         onFavoritesTap: () {
                           Navigator.of(context).push(
                             PageRouteBuilder(
                               pageBuilder:
                                   (context, animation, secondaryAnimation) =>
                                       const FavoritesScreen(),
+                              transitionsBuilder:
+                                  (
+                                    context,
+                                    animation,
+                                    secondaryAnimation,
+                                    child,
+                                  ) {
+                                    const begin = Offset(1.0, 0.0);
+                                    const end = Offset.zero;
+                                    const curve = Curves.easeInOut;
+                                    var slideTween = Tween(
+                                      begin: begin,
+                                      end: end,
+                                    ).chain(CurveTween(curve: curve));
+                                    var fadeTween = Tween<double>(
+                                      begin: 0.0,
+                                      end: 1.0,
+                                    ).chain(CurveTween(curve: curve));
+                                    return SlideTransition(
+                                      position: animation.drive(slideTween),
+                                      child: FadeTransition(
+                                        opacity: animation.drive(fadeTween),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                              transitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
+                              reverseTransitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
+                            ),
+                          );
+                        },
+                        onPlaylistsTap: () {
+                          Navigator.of(context).push(
+                            PageRouteBuilder(
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) =>
+                                      const PlaylistScreen(),
                               transitionsBuilder:
                                   (
                                     context,

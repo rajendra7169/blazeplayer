@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../providers/music_player_provider.dart';
 import '../widgets/artwork_color_builder.dart';
 import '../widgets/cached_artwork_widget.dart';
@@ -16,16 +18,151 @@ class LyricsScreen extends StatefulWidget {
 }
 
 class _LyricsScreenState extends State<LyricsScreen> {
+  Future<void> _fetchAndCacheLyrics() async {
+    final playerProvider = context.read<MusicPlayerProvider>();
+    final currentSong = playerProvider.currentSong;
+    if (currentSong == null) return;
+
+    setState(() => _isLoading = true);
+    String? lyrics;
+    bool isLrcFormat = false;
+
+    // 1. Try LRCLIB first (synced LRC lyrics - FREE, no API key needed)
+    try {
+      final lrclibResponse = Uri.parse(
+        'https://lrclib.net/api/get?artist_name=${Uri.encodeComponent(currentSong.artist)}&track_name=${Uri.encodeComponent(currentSong.title)}',
+      );
+      print(
+        '🔍 Searching LRCLIB: ${currentSong.artist} - ${currentSong.title}',
+      );
+      final lrclibResult = await http.get(lrclibResponse);
+      print('📡 LRCLIB Status: ${lrclibResult.statusCode}');
+      if (lrclibResult.statusCode == 200) {
+        final data = jsonDecode(lrclibResult.body);
+        print('📦 LRCLIB Response: ${data.keys}');
+        if (data['syncedLyrics'] != null &&
+            data['syncedLyrics'].toString().isNotEmpty) {
+          lyrics = data['syncedLyrics'] as String;
+          isLrcFormat = true;
+          print('✅ Found synced LRC lyrics from LRCLIB');
+        } else if (data['plainLyrics'] != null &&
+            data['plainLyrics'].toString().isNotEmpty) {
+          lyrics = data['plainLyrics'] as String;
+          print('✅ Found plain lyrics from LRCLIB');
+        } else {
+          print('⚠️ LRCLIB returned empty lyrics');
+        }
+      } else {
+        print(
+          '❌ LRCLIB failed: ${lrclibResult.statusCode} - ${lrclibResult.body}',
+        );
+      }
+    } catch (e) {
+      print('❌ LRCLIB API error: $e');
+    }
+
+    // 2. Try AudD API if no result (requires free API key)
+    if (lyrics == null || lyrics.isEmpty) {
+      const auddApiKey = '488d79b4b321c972a5762e99841d8089';
+      try {
+        final auddResponse = Uri.parse(
+          'https://api.audd.io/findLyrics/?q=${Uri.encodeComponent('${currentSong.title} ${currentSong.artist}')}&api_token=$auddApiKey',
+        );
+        print('🔍 Searching AudD: ${currentSong.title} ${currentSong.artist}');
+        final auddResult = await http.get(auddResponse);
+        print('📡 AudD Status: ${auddResult.statusCode}');
+        if (auddResult.statusCode == 200) {
+          final data = jsonDecode(auddResult.body);
+          print('📦 AudD Response: ${data.keys}');
+          if (data['result'] != null && data['result']['lyrics'] != null) {
+            lyrics = data['result']['lyrics'] as String;
+            print('✅ Found lyrics from AudD');
+          } else {
+            print('⚠️ AudD returned no lyrics in result');
+          }
+        } else {
+          print('❌ AudD failed: ${auddResult.statusCode}');
+        }
+      } catch (e) {
+        print('❌ AudD API error: $e');
+      }
+    }
+
+    // 3. Fallback to Lyrics.ovh if still no result
+    if (lyrics == null || lyrics.isEmpty) {
+      try {
+        final ovhResponse = Uri.parse(
+          'https://api.lyrics.ovh/v1/${Uri.encodeComponent(currentSong.artist)}/${Uri.encodeComponent(currentSong.title)}',
+        );
+        print(
+          '🔍 Searching Lyrics.ovh: ${currentSong.artist} - ${currentSong.title}',
+        );
+        final ovhResult = await http.get(ovhResponse);
+        print('📡 Lyrics.ovh Status: ${ovhResult.statusCode}');
+        if (ovhResult.statusCode == 200) {
+          final data = jsonDecode(ovhResult.body);
+          print('📦 Lyrics.ovh Response: ${data.keys}');
+          if (data['lyrics'] != null) {
+            lyrics = data['lyrics'] as String;
+            print('✅ Found lyrics from Lyrics.ovh');
+          } else {
+            print('⚠️ Lyrics.ovh returned no lyrics');
+          }
+        } else {
+          print('❌ Lyrics.ovh failed: ${ovhResult.statusCode}');
+        }
+      } catch (e) {
+        print('❌ Lyrics.ovh API error: $e');
+      }
+    }
+
+    // Parse LRC format if applicable
+    if (lyrics != null && lyrics.isNotEmpty) {
+      // Cache the original lyrics (with timestamps if LRC)
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final cachedLyricsKey = 'lyrics_cached_${currentSong.id}';
+        await prefs.setString(cachedLyricsKey, lyrics); // Cache original
+      } catch (e) {
+        print('Error caching lyrics: $e');
+      }
+
+      // Parse LRC to extract timestamps and display text
+      if (isLrcFormat || lyrics.contains(RegExp(r'\[\d{2}:\d{2}'))) {
+        print('🔄 Parsing LRC format lyrics');
+        lyrics = _parseLrcFile(lyrics);
+      }
+    }
+
+    setState(() {
+      _lyrics = lyrics;
+      _isLoading = false;
+    });
+  }
+
+  // Add required imports
+  // import 'dart:convert';
+  // import 'package:http/http.dart' as http;
   String? _lyrics;
   int? _currentLineIndex;
   bool _isLoading = false;
   bool _isDragging = false;
   double _dragPosition = 0.0;
+  final ScrollController _scrollController = ScrollController();
+  final Map<int, int> _lrcTimestamps = {}; // line index -> milliseconds
+  List<String> _lyricsLines = [];
+  final Map<int, GlobalKey> _lineKeys = {}; // Keys for accurate positioning
 
   @override
   void initState() {
     super.initState();
     _loadSavedLyrics();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSavedLyrics() async {
@@ -38,24 +175,50 @@ class _LyricsScreenState extends State<LyricsScreen> {
       if (currentSong != null) {
         final prefs = await SharedPreferences.getInstance();
         final songKey = 'lyrics_${currentSong.id}';
-        final savedLyricsPath = prefs.getString(songKey);
+        final cachedLyricsKey = 'lyrics_cached_${currentSong.id}';
 
+        // First check for cached lyrics text
+        final cachedLyrics = prefs.getString(cachedLyricsKey);
+        if (cachedLyrics != null && cachedLyrics.isNotEmpty) {
+          // Check if cached lyrics are in LRC format and parse them
+          if (cachedLyrics.contains(RegExp(r'\[\d{2}:\d{2}'))) {
+            print('🔄 Parsing cached LRC lyrics');
+            final parsed = _parseLrcFile(cachedLyrics);
+            setState(() {
+              _lyrics = parsed;
+              _isLoading = false;
+            });
+          } else {
+            setState(() {
+              _lyrics = cachedLyrics;
+              _isLoading = false;
+            });
+          }
+          return;
+        }
+
+        // Then check for saved LRC file path
+        final savedLyricsPath = prefs.getString(songKey);
         if (savedLyricsPath != null && savedLyricsPath.isNotEmpty) {
           final file = File(savedLyricsPath);
           if (await file.exists()) {
             final content = await file.readAsString();
             setState(() {
               _lyrics = _parseLrcFile(content);
+              _isLoading = false;
             });
+            return;
           } else {
             // File no longer exists, remove the saved path
             await prefs.remove(songKey);
           }
         }
+
+        // No cached lyrics found, try to fetch from API
+        await _fetchAndCacheLyrics();
       }
     } catch (e) {
       print('Error loading saved lyrics: $e');
-    } finally {
       setState(() => _isLoading = false);
     }
   }
@@ -164,33 +327,56 @@ class _LyricsScreenState extends State<LyricsScreen> {
     // Split by lines
     final lines = content.split('\n');
     final lyricsLines = <String>[];
+    _lrcTimestamps.clear();
+    int lineIndex = 0;
 
     for (var line in lines) {
       line = line.trim();
       if (line.isEmpty) {
         lyricsLines.add('');
+        lineIndex++;
         continue;
       }
 
-      // Remove .lrc timestamp format [00:12.00] or [00:12:00]
-      // This regex removes timestamps like [00:12.00] or [mm:ss.xx]
+      // Extract timestamp from LRC format [mm:ss.xx] or [mm:ss:xx]
+      final timestampMatch = RegExp(
+        r'\[(\d{2}):(\d{2})[\.:\\]?(\d{2})\]',
+      ).firstMatch(line);
+      int? timestamp;
+      if (timestampMatch != null) {
+        final minutes = int.parse(timestampMatch.group(1)!);
+        final seconds = int.parse(timestampMatch.group(2)!);
+        final centiseconds = int.parse(timestampMatch.group(3)!);
+        timestamp =
+            (minutes * 60 * 1000) + (seconds * 1000) + (centiseconds * 10);
+      }
+
+      // Remove timestamp from line
       final cleanedLine = line
-          .replaceAll(RegExp(r'\[\d{2}:\d{2}[:.]\d{2}\]'), '')
+          .replaceAll(RegExp(r'\[\d{2}:\d{2}[\.:\\]?\d{2}\]'), '')
           .trim();
 
-      // Also handle metadata tags like [ti:Title], [ar:Artist], etc.
+      // Skip metadata tags like [ti:Title], [ar:Artist], etc.
       if (cleanedLine.startsWith('[') &&
           cleanedLine.contains(':') &&
           cleanedLine.endsWith(']')) {
-        // Skip metadata
         continue;
       }
 
       if (cleanedLine.isNotEmpty) {
+        if (timestamp != null) {
+          _lrcTimestamps[lineIndex] = timestamp;
+          print('📍 Line $lineIndex: "$cleanedLine" -> ${timestamp}ms');
+        }
         lyricsLines.add(cleanedLine);
+        lineIndex++;
       }
     }
 
+    _lyricsLines = lyricsLines;
+    print(
+      '✅ Parsed ${_lrcTimestamps.length} timestamped lines out of ${lyricsLines.length} total lines',
+    );
     return lyricsLines.join('\n');
   }
 
@@ -204,9 +390,6 @@ class _LyricsScreenState extends State<LyricsScreen> {
       Navigator.of(context).pop();
       return const SizedBox.shrink();
     }
-
-    // Check if lyrics are available (for now, always false)
-    final hasLyrics = _lyrics != null;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -283,8 +466,6 @@ class _LyricsScreenState extends State<LyricsScreen> {
     dynamic currentSong,
     bool isDark,
   ) {
-    final hasLyrics = _lyrics != null;
-
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
       child: Container(
@@ -337,7 +518,7 @@ class _LyricsScreenState extends State<LyricsScreen> {
                           color: Colors.white.withOpacity(0.7),
                         ),
                       )
-                    : hasLyrics
+                    : _lyrics != null
                     ? _buildLyricsView(isDark)
                     : _buildNoLyricsView(isDark),
               ),
@@ -350,79 +531,91 @@ class _LyricsScreenState extends State<LyricsScreen> {
                 ),
                 child: Column(
                   children: [
-                    SliderTheme(
-                      data: SliderThemeData(
-                        trackHeight: 3,
-                        thumbShape: const RoundSliderThumbShape(
-                          enabledThumbRadius: 6,
-                        ),
-                        overlayShape: const RoundSliderOverlayShape(
-                          overlayRadius: 16,
-                        ),
-                        activeTrackColor: isDark ? Colors.white : Colors.white,
-                        inactiveTrackColor:
-                            (isDark ? Colors.white : Colors.white).withOpacity(
-                              0.3,
+                    ValueListenableBuilder<Duration>(
+                      valueListenable: playerProvider.positionNotifier,
+                      builder: (context, position, _) {
+                        return SliderTheme(
+                          data: SliderThemeData(
+                            trackHeight: 3,
+                            thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 6,
                             ),
-                        thumbColor: isDark ? Colors.white : Colors.white,
-                        overlayColor: (isDark ? Colors.white : Colors.white)
-                            .withOpacity(0.2),
-                      ),
-                      child: Slider(
-                        value: _isDragging
-                            ? _dragPosition
-                            : playerProvider.currentPosition.inSeconds
-                                  .toDouble()
-                                  .clamp(
-                                    0.0,
-                                    currentSong.duration.inSeconds.toDouble(),
-                                  )
-                                  .toDouble(),
-                        max: currentSong.duration.inSeconds.toDouble() > 0
-                            ? currentSong.duration.inSeconds.toDouble()
-                            : 0.1,
-                        onChanged: (value) {
-                          setState(() {
-                            _isDragging = true;
-                            _dragPosition = value;
-                          });
-                        },
-                        onChangeEnd: (value) {
-                          playerProvider.seekTo(
-                            Duration(seconds: value.toInt()),
-                          );
-                          setState(() {
-                            _isDragging = false;
-                          });
-                        },
-                      ),
+                            overlayShape: const RoundSliderOverlayShape(
+                              overlayRadius: 16,
+                            ),
+                            activeTrackColor: isDark
+                                ? Colors.white
+                                : Colors.white,
+                            inactiveTrackColor:
+                                (isDark ? Colors.white : Colors.white)
+                                    .withOpacity(0.3),
+                            thumbColor: isDark ? Colors.white : Colors.white,
+                            overlayColor: (isDark ? Colors.white : Colors.white)
+                                .withOpacity(0.2),
+                          ),
+                          child: Slider(
+                            value: _isDragging
+                                ? _dragPosition
+                                : position.inSeconds
+                                      .toDouble()
+                                      .clamp(
+                                        0.0,
+                                        currentSong.duration.inSeconds
+                                            .toDouble(),
+                                      )
+                                      .toDouble(),
+                            max: currentSong.duration.inSeconds.toDouble() > 0
+                                ? currentSong.duration.inSeconds.toDouble()
+                                : 0.1,
+                            onChanged: (value) {
+                              setState(() {
+                                _isDragging = true;
+                                _dragPosition = value;
+                              });
+                            },
+                            onChangeEnd: (value) {
+                              playerProvider.seekTo(
+                                Duration(seconds: value.toInt()),
+                              );
+                              setState(() {
+                                _isDragging = false;
+                              });
+                            },
+                          ),
+                        );
+                      },
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _formatDuration(
-                              _isDragging
-                                  ? Duration(seconds: _dragPosition.toInt())
-                                  : playerProvider.currentPosition,
-                            ),
-                            style: TextStyle(
-                              color: (isDark ? Colors.white : Colors.white)
-                                  .withOpacity(0.7),
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            '-${_formatDuration(_isDragging ? Duration(seconds: (currentSong.duration.inSeconds - _dragPosition.toInt())) : currentSong.duration - playerProvider.currentPosition)}',
-                            style: TextStyle(
-                              color: (isDark ? Colors.white : Colors.white)
-                                  .withOpacity(0.7),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                      child: ValueListenableBuilder<Duration>(
+                        valueListenable: playerProvider.positionNotifier,
+                        builder: (context, position, _) {
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _formatDuration(
+                                  _isDragging
+                                      ? Duration(seconds: _dragPosition.toInt())
+                                      : position,
+                                ),
+                                style: TextStyle(
+                                  color: (isDark ? Colors.white : Colors.white)
+                                      .withOpacity(0.7),
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                '-${_formatDuration(_isDragging ? Duration(seconds: (currentSong.duration.inSeconds - _dragPosition.toInt())) : currentSong.duration - position)}',
+                                style: TextStyle(
+                                  color: (isDark ? Colors.white : Colors.white)
+                                      .withOpacity(0.7),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -435,42 +628,105 @@ class _LyricsScreenState extends State<LyricsScreen> {
                 child: Row(
                   children: [
                     // Album Art
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: SizedBox(
-                        width: 50,
-                        height: 50,
-                        child: currentSong.albumArt != null
-                            ? CachedArtworkWidget(
-                                songId: currentSong.albumArt!,
-                                width: 50,
-                                height: 50,
-                                fit: BoxFit.cover,
-                                borderRadius: BorderRadius.zero,
-                                fallback: Container(
-                                  width: 50,
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.1),
+                    Builder(
+                      builder: (context) {
+                        final customArtPath = Provider.of<MusicPlayerProvider>(
+                          context,
+                          listen: false,
+                        ).getCustomArtForSong(currentSong.id);
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: SizedBox(
+                            width: 50,
+                            height: 50,
+                            child:
+                                (customArtPath != null &&
+                                    customArtPath.isNotEmpty)
+                                ? Image.file(
+                                    File(customArtPath),
+                                    fit: BoxFit.cover,
+                                    width: 50,
+                                    height: 50,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
+                                              width: 50,
+                                              height: 50,
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  colors: [
+                                                    const Color(
+                                                      0xFFFFA726,
+                                                    ).withOpacity(0.7),
+                                                    const Color(
+                                                      0xFFFF7043,
+                                                    ).withOpacity(0.7),
+                                                  ],
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Icon(
+                                                Icons.music_note_rounded,
+                                                color: Colors.white.withOpacity(
+                                                  0.5,
+                                                ),
+                                              ),
+                                            ),
+                                  )
+                                : (currentSong.albumArt != null)
+                                ? CachedArtworkWidget(
+                                    songId: currentSong.albumArt!,
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover,
+                                    borderRadius: BorderRadius.zero,
+                                    fallback: Container(
+                                      width: 50,
+                                      height: 50,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            const Color(
+                                              0xFFFFA726,
+                                            ).withOpacity(0.7),
+                                            const Color(
+                                              0xFFFF7043,
+                                            ).withOpacity(0.7),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        Icons.music_note_rounded,
+                                        color: Colors.white.withOpacity(0.5),
+                                      ),
+                                    ),
+                                  )
+                                : Container(
+                                    width: 50,
+                                    height: 50,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          const Color(
+                                            0xFFFFA726,
+                                          ).withOpacity(0.7),
+                                          const Color(
+                                            0xFFFF7043,
+                                          ).withOpacity(0.7),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.music_note_rounded,
+                                      color: Colors.white.withOpacity(0.5),
+                                    ),
                                   ),
-                                  child: Icon(
-                                    Icons.music_note_rounded,
-                                    color: Colors.white.withOpacity(0.5),
-                                  ),
-                                ),
-                              )
-                            : Container(
-                                width: 50,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1),
-                                ),
-                                child: Icon(
-                                  Icons.music_note_rounded,
-                                  color: Colors.white.withOpacity(0.5),
-                                ),
-                              ),
-                      ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(width: 12),
                     // Song Info
@@ -534,43 +790,129 @@ class _LyricsScreenState extends State<LyricsScreen> {
   }
 
   Widget _buildLyricsView(bool isDark) {
-    // Split the lyrics into lines
-    final lines = _lyrics?.split('\n') ?? [];
+    return Consumer<MusicPlayerProvider>(
+      builder: (context, playerProvider, _) {
+        return ValueListenableBuilder<Duration>(
+          valueListenable: playerProvider.positionNotifier,
+          builder: (context, position, _) {
+            // Update current line based on position
+            _updateCurrentLine(position);
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      itemCount: lines.length,
-      itemBuilder: (context, index) {
-        final isCurrentLine = index == _currentLineIndex;
-        final isVerseLabel =
-            lines[index].startsWith('(') && lines[index].endsWith(')');
-        final isEmpty = lines[index].trim().isEmpty;
+            final lines = _lyricsLines.isNotEmpty
+                ? _lyricsLines
+                : (_lyrics?.split('\n') ?? []);
 
-        // Handle empty lines
-        if (isEmpty) {
-          return const SizedBox(height: 16);
-        }
+            return ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              itemCount: lines.length,
+              itemBuilder: (context, index) {
+                final isCurrentLine = index == _currentLineIndex;
+                final isVerseLabel =
+                    lines[index].startsWith('(') && lines[index].endsWith(')');
+                final isEmpty = lines[index].trim().isEmpty;
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text(
-            lines[index],
-            style: TextStyle(
-              color: isCurrentLine
-                  ? (isDark ? const Color(0xFFFFA726) : Colors.white)
-                  : (isDark ? Colors.white : Colors.white).withOpacity(
-                      isVerseLabel ? 0.9 : 0.6,
+                // Handle empty lines
+                if (isEmpty) {
+                  return const SizedBox(height: 16);
+                }
+
+                // Create or get GlobalKey for this line
+                _lineKeys[index] ??= GlobalKey();
+
+                return Padding(
+                  key: _lineKeys[index],
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Text(
+                    lines[index],
+                    style: TextStyle(
+                      color: isCurrentLine
+                          ? const Color(
+                              0xFFFFA726,
+                            ) // Bright orange for current line
+                          : Colors.white.withOpacity(
+                              isVerseLabel ? 0.7 : 0.4,
+                            ), // Dimmed for others
+                      fontSize: isCurrentLine
+                          ? 28
+                          : (isVerseLabel ? 18 : 20), // Bigger text
+                      fontWeight: isCurrentLine
+                          ? FontWeight
+                                .w900 // Extra bold for current
+                          : (isVerseLabel
+                                ? FontWeight.w700
+                                : FontWeight.w600), // Bold for all
+                      height: 1.6,
+                      letterSpacing: 0.5,
                     ),
-              fontSize: isCurrentLine ? 24 : (isVerseLabel ? 16 : 18),
-              fontWeight: isCurrentLine
-                  ? FontWeight.bold
-                  : (isVerseLabel ? FontWeight.w600 : FontWeight.w400),
-              height: 1.5,
-            ),
-            textAlign: TextAlign.center,
-          ),
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              },
+            );
+          },
         );
       },
+    );
+  }
+
+  void _updateCurrentLine(Duration position) {
+    if (_lrcTimestamps.isEmpty) {
+      return;
+    }
+
+    final positionMs = position.inMilliseconds;
+    int? newLineIndex;
+
+    // Find the current line based on timestamp (with better matching)
+    final sortedEntries = _lrcTimestamps.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+
+    for (var i = 0; i < sortedEntries.length; i++) {
+      final entry = sortedEntries[i];
+      final nextEntry = i < sortedEntries.length - 1
+          ? sortedEntries[i + 1]
+          : null;
+
+      if (positionMs >= entry.value &&
+          (nextEntry == null || positionMs < nextEntry.value)) {
+        newLineIndex = entry.key;
+        break;
+      }
+    }
+
+    if (newLineIndex != null && newLineIndex != _currentLineIndex) {
+      final tempLineIndex = newLineIndex; // Capture the value
+
+      // Schedule state update and immediate scroll
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _currentLineIndex = tempLineIndex;
+          });
+          _scrollToCurrentLine();
+        }
+      });
+    }
+  }
+
+  void _scrollToCurrentLine() {
+    if (_currentLineIndex == null) {
+      return;
+    }
+
+    // Get the GlobalKey for the current line
+    final key = _lineKeys[_currentLineIndex!];
+    if (key == null || key.currentContext == null) {
+      return;
+    }
+
+    // Use Scrollable.ensureVisible for accurate centering
+    Scrollable.ensureVisible(
+      key.currentContext!,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      alignment: 0.5, // 0.5 = center of screen
     );
   }
 

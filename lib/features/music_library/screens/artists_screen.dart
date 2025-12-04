@@ -7,8 +7,8 @@ import '../../player/widgets/mini_player.dart';
 import '../../player/widgets/cached_artwork_widget.dart';
 import '../../player/models/song_model.dart';
 
-class AlbumsScreen extends StatelessWidget {
-  const AlbumsScreen({super.key});
+class ArtistsScreen extends StatelessWidget {
+  const ArtistsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -26,16 +26,18 @@ class AlbumsScreen extends StatelessWidget {
         children: [
           Consumer<MusicPlayerProvider>(
             builder: (context, playerProvider, _) {
-              final albums = playerProvider.allAlbums;
-              if (albums.isEmpty) {
+              // Group songs by artist
+              final artistMap = <String, List<dynamic>>{};
+              for (final song in playerProvider.allSongs) {
+                final artist = song.artist.isNotEmpty
+                    ? song.artist
+                    : 'Unknown Artist';
+                artistMap.putIfAbsent(artist, () => []).add(song);
+              }
+              final artists = artistMap.keys.toList();
+              if (artists.isEmpty) {
                 return const Center(child: CircularProgressIndicator());
               }
-
-              // Get all songs from all albums for shuffle/play all
-              final allAlbumSongs = albums
-                  .expand((album) => playerProvider.getSongsForAlbum(album.id))
-                  .toList();
-
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -57,7 +59,7 @@ class AlbumsScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(24),
                                 ),
                                 child: Icon(
-                                  Icons.album_rounded,
+                                  Icons.person_rounded,
                                   color: accentColor,
                                   size: 72,
                                 ),
@@ -67,7 +69,7 @@ class AlbumsScreen extends StatelessWidget {
                           // Page title
                           Center(
                             child: Text(
-                              'Albums',
+                              'Artists',
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -75,7 +77,7 @@ class AlbumsScreen extends StatelessWidget {
                               ),
                             ),
                           ),
-                          // Album count
+                          // Artist count
                           Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 24,
@@ -84,7 +86,7 @@ class AlbumsScreen extends StatelessWidget {
                             child: Row(
                               children: [
                                 Text(
-                                  '${albums.length} albums',
+                                  '${artists.length} artists',
                                   style: TextStyle(
                                     color: isDark
                                         ? Colors.white60
@@ -94,124 +96,29 @@ class AlbumsScreen extends StatelessWidget {
                                 ),
                                 const Spacer(),
                                 Icon(
-                                  Icons.library_music_rounded,
+                                  Icons.person_rounded,
                                   color: accentColor,
                                   size: 24,
                                 ),
                               ],
                             ),
                           ),
-                          // Shuffle and Play buttons
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 8,
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: cardColor,
-                                      foregroundColor: accentColor,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(18),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 14,
-                                      ),
-                                      elevation: 0,
-                                    ),
-                                    onPressed: () {
-                                      if (allAlbumSongs.isNotEmpty) {
-                                        playerProvider.shuffleAndPlay(
-                                          allAlbumSongs,
-                                        );
-                                      }
-                                    },
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.shuffle_rounded,
-                                          color: accentColor,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Shuffle',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: accentColor,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(18),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 14,
-                                      ),
-                                      elevation: 0,
-                                    ),
-                                    onPressed: () {
-                                      if (allAlbumSongs.isNotEmpty) {
-                                        playerProvider.setPlaylist(
-                                          allAlbumSongs,
-                                        );
-                                        playerProvider.playSong(
-                                          allAlbumSongs.first,
-                                        );
-                                      }
-                                    },
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.play_arrow_rounded,
-                                          color: Colors.white,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Play',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Album list
+                          // Artist list
                           ListView.builder(
                             shrinkWrap: true,
                             physics: NeverScrollableScrollPhysics(),
                             padding: const EdgeInsets.only(top: 8, bottom: 100),
-                            itemCount: albums.length,
+                            itemCount: artists.length,
                             itemBuilder: (context, index) {
-                              final album = albums[index];
-                              final albumArtImages = playerProvider
-                                  .getAlbumArtImages(album.id, maxCount: 4);
+                              final artist = artists[index];
+                              final songs = artistMap[artist]!;
+                              final artImages = songs.isNotEmpty
+                                  ? [songs[0].id.toString()]
+                                  : <String>[];
                               return ListTile(
-                                leading: AlbumArtGrid(
-                                  artImages: albumArtImages,
-                                ),
+                                leading: ArtistArtGrid(artImages: artImages),
                                 title: Text(
-                                  album.name,
+                                  artist,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -222,7 +129,7 @@ class AlbumsScreen extends StatelessWidget {
                                   ),
                                 ),
                                 subtitle: Text(
-                                  '${album.songCount} songs',
+                                  '${songs.length} songs',
                                   style: TextStyle(
                                     color: isDark
                                         ? Colors.white60
@@ -233,10 +140,8 @@ class AlbumsScreen extends StatelessWidget {
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
                                       builder: (context) => SongListScreen(
-                                        title: album.name,
-                                        songs: playerProvider
-                                            .getSongsForAlbum(album.id)
-                                            .cast<Song>(),
+                                        title: artist,
+                                        songs: songs.cast<Song>(),
                                         showSearch: true,
                                       ),
                                     ),
@@ -281,9 +186,9 @@ class AlbumsScreen extends StatelessWidget {
   }
 }
 
-class AlbumArtGrid extends StatelessWidget {
+class ArtistArtGrid extends StatelessWidget {
   final List<String> artImages;
-  const AlbumArtGrid({super.key, required this.artImages});
+  const ArtistArtGrid({super.key, required this.artImages});
 
   @override
   Widget build(BuildContext context) {
@@ -291,7 +196,7 @@ class AlbumArtGrid extends StatelessWidget {
     final songId = artImages.isNotEmpty ? artImages[0] : '';
 
     if (songId.isEmpty) {
-      return _albumPlaceholder(isDark);
+      return _artistPlaceholder(isDark);
     }
 
     return ClipRRect(
@@ -309,7 +214,7 @@ class AlbumArtGrid extends StatelessWidget {
                 width: 56,
                 height: 56,
                 errorBuilder: (context, error, stackTrace) =>
-                    _albumPlaceholder(isDark),
+                    _artistPlaceholder(isDark),
               );
             } else {
               return CachedArtworkWidget(
@@ -318,7 +223,7 @@ class AlbumArtGrid extends StatelessWidget {
                 height: 56,
                 fit: BoxFit.cover,
                 borderRadius: BorderRadius.circular(8),
-                fallback: _albumPlaceholder(isDark),
+                fallback: _artistPlaceholder(isDark),
               );
             }
           },
@@ -328,7 +233,7 @@ class AlbumArtGrid extends StatelessWidget {
   }
 }
 
-Widget _albumPlaceholder(bool isDark) {
+Widget _artistPlaceholder(bool isDark) {
   return Container(
     width: 56,
     height: 56,
@@ -337,7 +242,7 @@ Widget _albumPlaceholder(bool isDark) {
       borderRadius: BorderRadius.circular(8),
     ),
     child: Icon(
-      Icons.album_rounded,
+      Icons.person_rounded,
       color: isDark ? Colors.white30 : Colors.grey[600],
       size: 32,
     ),

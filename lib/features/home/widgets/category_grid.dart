@@ -60,11 +60,15 @@ class CategoryGrid extends StatelessWidget {
   final VoidCallback? onSongsTap;
   final VoidCallback? onAlbumsTap;
   final VoidCallback? onFavoritesTap;
+  final VoidCallback? onArtistsTap;
+  final VoidCallback? onPlaylistsTap;
   const CategoryGrid({
     super.key,
     this.onSongsTap,
     this.onAlbumsTap,
     this.onFavoritesTap,
+    this.onArtistsTap,
+    this.onPlaylistsTap,
   });
 
   @override
@@ -121,8 +125,12 @@ class CategoryGrid extends StatelessWidget {
             tapHandler = onSongsTap;
           } else if (category['title'] == 'Albums') {
             tapHandler = onAlbumsTap;
+          } else if (category['title'] == 'Artists') {
+            tapHandler = onArtistsTap;
           } else if (category['title'] == 'Favorites') {
             tapHandler = onFavoritesTap;
+          } else if (category['title'] == 'Playlists') {
+            tapHandler = onPlaylistsTap;
           }
           return CategoryCard(
             title: category['title'] as String,

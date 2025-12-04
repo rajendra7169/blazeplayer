@@ -11,11 +11,44 @@ import '../services/audio_player_service.dart';
 import 'package:blazeplayer/core/services/local_storage_service.dart';
 
 class MusicPlayerProvider extends ChangeNotifier {
+  // --- Playlist Getters for PlaylistScreen ---
+  /// Songs marked as favorite by the user
+  List<Song> get favouriteSongs {
+    return _originalPlaylist
+        .where((s) => _favoriteSongIds.contains(s.id))
+        .toList();
+  }
+
+  /// Songs sorted by most recently added
+  List<Song> get lastAddedSongs {
+    final songs = [..._originalPlaylist];
+    songs.sort((a, b) => (b.dateAdded ?? 0).compareTo(a.dateAdded ?? 0));
+    return songs.take(50).toList(); // Limit to 50 for performance
+  }
+
+  /// Songs sorted by most played
+  List<Song> get mostPlayedSongs {
+    final songs = [..._originalPlaylist];
+    songs.sort(
+      (a, b) =>
+          (_songPlayCounts[b.id] ?? 0).compareTo(_songPlayCounts[a.id] ?? 0),
+    );
+    return songs
+        .where((s) => (_songPlayCounts[s.id] ?? 0) > 0)
+        .take(50)
+        .toList();
+  }
+
   /// Shuffle the given list and play a random song
   Future<void> shuffleAndPlay(List<Song> songs) async {
     if (songs.isEmpty) return;
+    // Set the playlist context to the provided songs
+    setPlaylist(songs);
+    _isShuffle = true;
     final shuffled = List<Song>.from(songs)..shuffle();
+    _playlist = shuffled;
     await playSong(shuffled.first);
+    notifyListeners();
   }
 
   final AudioPlayerService _audioService = AudioPlayerService();
@@ -35,11 +68,15 @@ class MusicPlayerProvider extends ChangeNotifier {
 
   static const _recentlyPlayedKey = 'recently_played_songs';
   static const _favoriteSongsKey = 'favorite_songs';
+  static const _myPlaylistsKey = 'my_playlists';
+  static const _mostPlayedKey = 'most_played_counts';
 
   MusicPlayerProvider() {
     _initializeAudioService();
     restoreRecentlyPlayedSongs();
     restoreFavoriteSongs();
+    loadMostPlayedCounts();
+    // After loading all songs, call loadMyPlaylists(allSongs)
   }
 
   final ValueNotifier<Duration> positionNotifier = ValueNotifier(Duration.zero);
@@ -137,9 +174,8 @@ class MusicPlayerProvider extends ChangeNotifier {
   }
 
   void setPlaylist(List<Song> songs) {
-    _originalPlaylist = List.from(songs);
-
-    // If shuffle is on, shuffle the new playlist but keep current song first if it exists
+    // Only set the playback playlist, never overwrite the original song list!
+    // _originalPlaylist should only be set when loading all songs from device/storage.
     if (_isShuffle) {
       final currentSongId = _currentSong?.id;
       if (currentSongId != null && songs.any((s) => s.id == currentSongId)) {
@@ -158,7 +194,6 @@ class MusicPlayerProvider extends ChangeNotifier {
     } else {
       _playlist = List.from(songs);
     }
-
     notifyListeners();
   }
 
@@ -267,6 +302,12 @@ class MusicPlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void addToFavourite(String songId) {
+    _favoriteSongIds.add(songId);
+    notifyListeners();
+    saveFavoriteSongs();
+  }
+
   bool isFavorite(String songId) {
     return _favoriteSongIds.contains(songId);
   }
@@ -303,6 +344,7 @@ class MusicPlayerProvider extends ChangeNotifier {
       // Increment play count
       _songPlayCounts[song.id] = (_songPlayCounts[song.id] ?? 0) + 1;
       await saveRecentlyPlayedSongs();
+      await saveMostPlayedCounts();
       notifyListeners();
 
       if (song.filePath.isNotEmpty) {
@@ -466,6 +508,7 @@ class MusicPlayerProvider extends ChangeNotifier {
         )
         .toList();
     preloadCustomArtPaths();
+    await loadMyPlaylists(_originalPlaylist);
     notifyListeners();
   }
 
@@ -562,6 +605,15 @@ class MusicPlayerProvider extends ChangeNotifier {
     return null;
   }
 
+  /// Play a song with a specific playlist context
+  /// This ensures next/previous work within the given song list
+  Future<void> playWithContext(Song song, List<Song> contextPlaylist) async {
+    // Set the playlist to the context (favorites, recommended, etc.)
+    setPlaylist(contextPlaylist);
+    // Now play the song
+    await playSong(song);
+  }
+
   // Edit Tags: Update song info
   void updateSongTags(
     String songId, {
@@ -608,6 +660,98 @@ class MusicPlayerProvider extends ChangeNotifier {
     // TODO: Implement actual info fetch (e.g., from web or local DB)
     // For now, just notify listeners
     notifyListeners();
+  }
+
+  // --- Custom Playlists ---
+  final List<Map<String, dynamic>> _myPlaylists = [];
+  List<Map<String, dynamic>> get myPlaylists => List.unmodifiable(_myPlaylists);
+
+  void addMyPlaylist(String name, List<Song> songs) async {
+    _myPlaylists.add({
+      'name': name,
+      'songs': List<Song>.from(songs),
+      'coverPath': null,
+    });
+    await saveMyPlaylists();
+    notifyListeners();
+  }
+
+  void renamePlaylist(int index, String newName) async {
+    if (index >= 0 && index < _myPlaylists.length) {
+      _myPlaylists[index]['name'] = newName;
+      await saveMyPlaylists();
+      notifyListeners();
+    }
+  }
+
+  void updatePlaylistCover(int index, String coverPath) async {
+    if (index >= 0 && index < _myPlaylists.length) {
+      _myPlaylists[index]['coverPath'] = coverPath;
+      await saveMyPlaylists();
+      notifyListeners();
+    }
+  }
+
+  void deletePlaylist(int index) async {
+    if (index >= 0 && index < _myPlaylists.length) {
+      _myPlaylists.removeAt(index);
+      await saveMyPlaylists();
+      notifyListeners();
+    }
+  }
+
+  Future<void> saveMyPlaylists() async {
+    final prefs = await SharedPreferences.getInstance();
+    final playlistData = _myPlaylists
+        .map(
+          (playlist) => {
+            'name': playlist['name'],
+            'coverPath': playlist['coverPath'],
+            'songs': (playlist['songs'] as List<Song>)
+                .map((s) => s.id)
+                .toList(),
+          },
+        )
+        .toList();
+    await prefs.setString(_myPlaylistsKey, jsonEncode(playlistData));
+  }
+
+  Future<void> loadMyPlaylists(List<Song> allSongs) async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(_myPlaylistsKey);
+    if (data != null) {
+      final decoded = jsonDecode(data) as List;
+      _myPlaylists.clear();
+      for (final playlist in decoded) {
+        final songIds = List<String>.from(playlist['songs']);
+        final songs = allSongs.where((s) => songIds.contains(s.id)).toList();
+        _myPlaylists.add({
+          'name': playlist['name'],
+          'coverPath': playlist['coverPath'],
+          'songs': songs,
+        });
+      }
+      notifyListeners();
+    }
+  }
+
+  // --- Most Played Songs ---
+  Future<void> saveMostPlayedCounts() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_mostPlayedKey, jsonEncode(_songPlayCounts));
+  }
+
+  Future<void> loadMostPlayedCounts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(_mostPlayedKey);
+    if (data != null) {
+      final decoded = jsonDecode(data) as Map<String, dynamic>;
+      _songPlayCounts.clear();
+      decoded.forEach((key, value) {
+        _songPlayCounts[key] = value as int;
+      });
+      notifyListeners();
+    }
   }
 
   @override

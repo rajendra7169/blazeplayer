@@ -158,10 +158,12 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
                                     ),
                                     onPressed: () {
                                       if (_filteredSongs.isNotEmpty) {
-                                        Provider.of<MusicPlayerProvider>(
-                                          context,
-                                          listen: false,
-                                        ).shuffleAndPlay(
+                                        final provider =
+                                            Provider.of<MusicPlayerProvider>(
+                                              context,
+                                              listen: false,
+                                            );
+                                        provider.shuffleAndPlay(
                                           _filteredSongs.cast<Song>(),
                                         );
                                       }
@@ -202,10 +204,15 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
                                     ),
                                     onPressed: () {
                                       if (_filteredSongs.isNotEmpty) {
-                                        Provider.of<MusicPlayerProvider>(
-                                          context,
-                                          listen: false,
-                                        ).playSong(_filteredSongs.first);
+                                        final provider =
+                                            Provider.of<MusicPlayerProvider>(
+                                              context,
+                                              listen: false,
+                                            );
+                                        provider.setPlaylist(
+                                          _filteredSongs.cast<Song>(),
+                                        );
+                                        provider.playSong(_filteredSongs.first);
                                       }
                                     },
                                     child: Row(
@@ -342,10 +349,15 @@ class _RecentlyPlayedScreenState extends State<RecentlyPlayedScreen> {
                                   },
                                 ),
                                 onTap: () {
-                                  Provider.of<MusicPlayerProvider>(
-                                    context,
-                                    listen: false,
-                                  ).playSong(song);
+                                  final provider =
+                                      Provider.of<MusicPlayerProvider>(
+                                        context,
+                                        listen: false,
+                                      );
+                                  provider.playWithContext(
+                                    song,
+                                    _filteredSongs.cast<Song>(),
+                                  );
                                 },
                               );
                             },

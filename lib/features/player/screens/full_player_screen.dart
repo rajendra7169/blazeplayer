@@ -847,11 +847,10 @@ class _MarqueeText extends StatefulWidget {
   final double velocity;
 
   const _MarqueeText({
-    Key? key,
     required this.text,
     required this.style,
     this.velocity = 32.0,
-  }) : super(key: key);
+  });
 
   @override
   State<_MarqueeText> createState() => _MarqueeTextState();

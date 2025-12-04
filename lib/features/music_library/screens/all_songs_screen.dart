@@ -221,10 +221,11 @@ class _AllSongsScreenState extends State<AllSongsScreen> {
                           ),
                           onPressed: () {
                             if (_filteredSongs.isNotEmpty) {
-                              Provider.of<MusicPlayerProvider>(
+                              final provider = Provider.of<MusicPlayerProvider>(
                                 context,
                                 listen: false,
-                              ).shuffleAndPlay(_filteredSongs);
+                              );
+                              provider.shuffleAndPlay(_filteredSongs);
                             }
                           },
                           child: Row(
@@ -257,10 +258,12 @@ class _AllSongsScreenState extends State<AllSongsScreen> {
                           ),
                           onPressed: () {
                             if (_filteredSongs.isNotEmpty) {
-                              Provider.of<MusicPlayerProvider>(
+                              final provider = Provider.of<MusicPlayerProvider>(
                                 context,
                                 listen: false,
-                              ).playSong(_filteredSongs.first);
+                              );
+                              provider.setPlaylist(_filteredSongs);
+                              provider.playSong(_filteredSongs.first);
                             }
                           },
                           child: Row(
@@ -356,10 +359,12 @@ class _AllSongsScreenState extends State<AllSongsScreen> {
                             delegate: _AllSongsSearchDelegate(
                               allSongs: songs,
                               onSongTap: (song) {
-                                Provider.of<MusicPlayerProvider>(
-                                  context,
-                                  listen: false,
-                                ).playSong(song);
+                                final provider =
+                                    Provider.of<MusicPlayerProvider>(
+                                      context,
+                                      listen: false,
+                                    );
+                                provider.playWithContext(song, songs);
                               },
                               onQueryChanged: (query) {
                                 setState(() {
@@ -492,10 +497,18 @@ class _SongListItemState extends State<_SongListItem>
         },
       ),
       onTap: () {
-        Provider.of<MusicPlayerProvider>(
+        // Access the parent widget's state to get _filteredSongs
+        final parentState = context
+            .findAncestorStateOfType<_AllSongsScreenState>();
+        final provider = Provider.of<MusicPlayerProvider>(
           context,
           listen: false,
-        ).playSong(widget.song);
+        );
+        if (parentState != null && parentState._filteredSongs.isNotEmpty) {
+          provider.playWithContext(widget.song, parentState._filteredSongs);
+        } else {
+          provider.playSong(widget.song);
+        }
       },
     );
   }
