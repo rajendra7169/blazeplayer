@@ -700,6 +700,16 @@ class MusicPlayerProvider extends ChangeNotifier {
     }
   }
 
+  void reorderPlaylist(int oldIndex, int newIndex) async {
+    if (oldIndex < 0 || oldIndex >= _myPlaylists.length) return;
+    if (newIndex < 0 || newIndex >= _myPlaylists.length) return;
+
+    final item = _myPlaylists.removeAt(oldIndex);
+    _myPlaylists.insert(newIndex, item);
+    await saveMyPlaylists();
+    notifyListeners();
+  }
+
   Future<void> saveMyPlaylists() async {
     final prefs = await SharedPreferences.getInstance();
     final playlistData = _myPlaylists

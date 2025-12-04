@@ -1,0 +1,136 @@
+class _ReorderablePlaylistGridState extends State<_ReorderablePlaylistGrid> {
+  int? _draggingIndex;
+  int? _hoverIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = (screenWidth - 64) / 2;
+    final cardHeight = cardWidth / 1.6;
+    
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: List.generate(widget.playlists.length, (index) {
+        final playlist = widget.playlists[index];
+        final songs = List<Song>.from(playlist['songs'] as List);
+        final artImages = songs.take(4).map((song) {
+          if (song.customArtPath != null && song.customArtPath!.isNotEmpty) {
+            return song.customArtPath!;
+          } else if (song.albumArt != null && song.albumArt!.isNotEmpty) {
+            return song.albumArt!;
+          } else {
+            return '';
+          }
+        }).toList();
+
+        final playlistColors = [
+          widget.isDark ? const Color(0xFF6A1B9A) : const Color(0xFFAB47BC),
+          widget.isDark ? const Color(0xFF00695C) : const Color(0xFF26A69A),
+          widget.isDark ? const Color(0xFFC62828) : const Color(0xFFEF5350),
+          widget.isDark ? const Color(0xFFEF6C00) : const Color(0xFFFF9800),
+          widget.isDark ? const Color(0xFF2E7D32) : const Color(0xFF66BB6A),
+          widget.isDark ? const Color(0xFF1565C0) : const Color(0xFF42A5F5),
+        ];
+        final cardColor = playlistColors[index % playlistColors.length];
+
+        final isBeingDragged = _draggingIndex == index;
+        final isHovered = _hoverIndex == index && _draggingIndex != null && _draggingIndex != index;
+
+        return DragTarget<int>(
+          key: ValueKey('playlist_$index'),
+          onAcceptWithDetails: (details) {
+            if (details.data != index) {
+              widget.onReorder(details.data, index);
+            }
+            setState(() {
+              _draggingIndex = null;
+              _hoverIndex = null;
+            });
+          },
+          onMove: (_) {
+            if (_hoverIndex != index) {
+              setState(() {
+                _hoverIndex = index;
+              });
+            }
+          },
+          onLeave: (_) {
+            setState(() {
+              _hoverIndex = null;
+            });
+          },
+          builder: (context, candidateData, rejectedData) {
+            return LongPressDraggable<int>(
+              data: index,
+              feedback: Material(
+                color: Colors.transparent,
+                child: Transform.scale(
+                  scale: 1.05,
+                  child: Opacity(
+                    opacity: 0.9,
+                    child: SizedBox(
+                      width: cardWidth,
+                      height: cardHeight,
+                      child: _PlaylistCard(
+                        playlist: playlist,
+                        artImages: artImages,
+                        cardColor: cardColor,
+                        isDark: widget.isDark,
+                        index: index,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              childWhenDragging: SizedBox(
+                width: cardWidth,
+                height: cardHeight,
+                child: Opacity(
+                  opacity: 0.3,
+                  child: _PlaylistCard(
+                    playlist: playlist,
+                    artImages: artImages,
+                    cardColor: cardColor,
+                    isDark: widget.isDark,
+                    index: index,
+                  ),
+                ),
+              ),
+              onDragStarted: () {
+                setState(() {
+                  _draggingIndex = index;
+                });
+              },
+              onDragEnd: (_) {
+                setState(() {
+                  _draggingIndex = null;
+                  _hoverIndex = null;
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+                width: cardWidth,
+                height: cardHeight,
+                transform: Matrix4.identity()
+                  ..scale(isHovered ? 0.95 : 1.0),
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: isBeingDragged ? 0.0 : 1.0,
+                  child: _PlaylistCard(
+                    playlist: playlist,
+                    artImages: artImages,
+                    cardColor: cardColor,
+                    isDark: widget.isDark,
+                    index: index,
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      }),
+    );
+  }
+}
