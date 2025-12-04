@@ -70,12 +70,33 @@ class MusicPlayerProvider extends ChangeNotifier {
   static const _favoriteSongsKey = 'favorite_songs';
   static const _myPlaylistsKey = 'my_playlists';
   static const _mostPlayedKey = 'most_played_counts';
+  static const _moodPlaylistsKey = 'mood_playlists';
+
+  // Mood Playlists
+  final Map<String, List<String>> _moodPlaylists = {
+    'Happy': [],
+    'Workout': [],
+    'Party': [],
+    'Chill': [],
+    'Sad': [],
+    'Focus': [],
+  };
+
+  Map<String, List<Song>> get moodPlaylists {
+    return _moodPlaylists.map((mood, songIds) {
+      final songs = _originalPlaylist
+          .where((s) => songIds.contains(s.id))
+          .toList();
+      return MapEntry(mood, songs);
+    });
+  }
 
   MusicPlayerProvider() {
     _initializeAudioService();
     restoreRecentlyPlayedSongs();
     restoreFavoriteSongs();
     loadMostPlayedCounts();
+    loadMoodPlaylists();
     // After loading all songs, call loadMyPlaylists(allSongs)
   }
 
@@ -504,11 +525,13 @@ class MusicPlayerProvider extends ChangeNotifier {
             albumArt: song.id.toString(),
             duration: Duration(milliseconds: song.duration ?? 0),
             filePath: song.data,
+            genre: song.genre,
           ),
         )
         .toList();
     preloadCustomArtPaths();
     await loadMyPlaylists(_originalPlaylist);
+    await generateMoodPlaylists();
     notifyListeners();
   }
 
@@ -759,6 +782,191 @@ class MusicPlayerProvider extends ChangeNotifier {
       _songPlayCounts.clear();
       decoded.forEach((key, value) {
         _songPlayCounts[key] = value as int;
+      });
+      notifyListeners();
+    }
+  }
+
+  // --- Mood Playlists ---
+  Future<void> generateMoodPlaylists() async {
+    // Clear existing mood playlists
+    _moodPlaylists.forEach((key, value) => value.clear());
+
+    for (final song in _originalPlaylist) {
+      final moods = _classifySongMood(song);
+      for (final mood in moods) {
+        if (_moodPlaylists.containsKey(mood)) {
+          _moodPlaylists[mood]!.add(song.id);
+        }
+      }
+    }
+
+    await saveMoodPlaylists();
+    notifyListeners();
+  }
+
+  List<String> _classifySongMood(Song song) {
+    final moods = <String>[];
+    final genre = (song.genre ?? '').toLowerCase();
+    final title = (song.title ?? '').toLowerCase();
+    final artist = (song.artist ?? '').toLowerCase();
+    final durationSeconds = song.duration.inSeconds;
+
+    // Genre-based classification
+    if (_isHappyGenre(genre)) moods.add('Happy');
+    if (_isWorkoutGenre(genre)) moods.add('Workout');
+    if (_isPartyGenre(genre)) moods.add('Party');
+    if (_isChillGenre(genre)) moods.add('Chill');
+    if (_isSadGenre(genre)) moods.add('Sad');
+    if (_isFocusGenre(genre)) moods.add('Focus');
+
+    // Keyword-based classification in title and artist
+    if (_containsHappyKeywords(title)) moods.add('Happy');
+    if (_containsWorkoutKeywords(title)) moods.add('Workout');
+    if (_containsPartyKeywords(title)) moods.add('Party');
+    if (_containsChillKeywords(title)) moods.add('Chill');
+    if (_containsSadKeywords(title)) moods.add('Sad');
+    if (_containsRomanticKeywords(title)) {
+      if (!moods.contains('Chill')) moods.add('Chill');
+    }
+
+    // Duration-based heuristics
+    if (durationSeconds > 300) {
+      // Long songs (>5 min) are good for focus
+      if (!moods.contains('Focus')) moods.add('Focus');
+    }
+
+    // If no mood assigned, use default based on genre or assign to Chill
+    if (moods.isEmpty) {
+      if (genre.isNotEmpty) {
+        moods.add('Chill'); // Default fallback
+      } else {
+        moods.add('Chill');
+      }
+    }
+
+    return moods;
+  }
+
+  bool _isHappyGenre(String genre) {
+    return genre.contains('pop') ||
+        genre.contains('dance') ||
+        genre.contains('disco') ||
+        genre.contains('funk') ||
+        genre.contains('reggae');
+  }
+
+  bool _isWorkoutGenre(String genre) {
+    return genre.contains('rock') ||
+        genre.contains('metal') ||
+        genre.contains('hip hop') ||
+        genre.contains('hip-hop') ||
+        genre.contains('rap') ||
+        genre.contains('electronic') ||
+        genre.contains('edm') ||
+        genre.contains('hard');
+  }
+
+  bool _isPartyGenre(String genre) {
+    return genre.contains('dance') ||
+        genre.contains('electronic') ||
+        genre.contains('edm') ||
+        genre.contains('hip hop') ||
+        genre.contains('hip-hop') ||
+        genre.contains('house') ||
+        genre.contains('techno') ||
+        genre.contains('trap');
+  }
+
+  bool _isChillGenre(String genre) {
+    return genre.contains('ambient') ||
+        genre.contains('jazz') ||
+        genre.contains('acoustic') ||
+        genre.contains('soul') ||
+        genre.contains('r&b') ||
+        genre.contains('lounge') ||
+        genre.contains('soft');
+  }
+
+  bool _isSadGenre(String genre) {
+    return genre.contains('blues') ||
+        genre.contains('ballad') ||
+        genre.contains('indie') && genre.contains('folk');
+  }
+
+  bool _isFocusGenre(String genre) {
+    return genre.contains('classical') ||
+        genre.contains('instrumental') ||
+        genre.contains('ambient') ||
+        genre.contains('lo-fi') ||
+        genre.contains('lofi');
+  }
+
+  bool _containsHappyKeywords(String text) {
+    return text.contains('happy') ||
+        text.contains('joy') ||
+        text.contains('smile') ||
+        text.contains('sunshine') ||
+        text.contains('celebrate');
+  }
+
+  bool _containsWorkoutKeywords(String text) {
+    return text.contains('power') ||
+        text.contains('strong') ||
+        text.contains('fight') ||
+        text.contains('energy') ||
+        text.contains('beast') ||
+        text.contains('run');
+  }
+
+  bool _containsPartyKeywords(String text) {
+    return text.contains('party') ||
+        text.contains('dance') ||
+        text.contains('club') ||
+        text.contains('night') ||
+        text.contains('wild');
+  }
+
+  bool _containsChillKeywords(String text) {
+    return text.contains('chill') ||
+        text.contains('relax') ||
+        text.contains('calm') ||
+        text.contains('peace') ||
+        text.contains('slow');
+  }
+
+  bool _containsSadKeywords(String text) {
+    return text.contains('sad') ||
+        text.contains('lonely') ||
+        text.contains('cry') ||
+        text.contains('tears') ||
+        text.contains('broken') ||
+        text.contains('miss') ||
+        text.contains('goodbye');
+  }
+
+  bool _containsRomanticKeywords(String text) {
+    return text.contains('love') ||
+        text.contains('heart') ||
+        text.contains('baby') ||
+        text.contains('kiss') ||
+        text.contains('forever');
+  }
+
+  Future<void> saveMoodPlaylists() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = _moodPlaylists.map((mood, songIds) => MapEntry(mood, songIds));
+    await prefs.setString(_moodPlaylistsKey, jsonEncode(data));
+  }
+
+  Future<void> loadMoodPlaylists() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(_moodPlaylistsKey);
+    if (data != null) {
+      final decoded = jsonDecode(data) as Map<String, dynamic>;
+      _moodPlaylists.clear();
+      decoded.forEach((mood, songIds) {
+        _moodPlaylists[mood] = List<String>.from(songIds);
       });
       notifyListeners();
     }

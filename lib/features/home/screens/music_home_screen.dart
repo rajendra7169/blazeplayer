@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:provider/provider.dart';
 import '../widgets/featured_album_card.dart';
 import '../widgets/search_bar_widget.dart';
@@ -15,6 +16,10 @@ import '../../music_library/screens/albums_screen.dart';
 import '../../music_library/screens/favorites_screen.dart';
 import '../../music_library/screens/artists_screen.dart';
 import '../../music_library/screens/playlist_screen.dart';
+import '../../music_library/screens/folder_screen.dart';
+import '../../music_library/screens/mood_playlists_screen.dart';
+import '../../music_library/screens/song_list_screen.dart';
+import '../../player/widgets/cached_artwork_widget.dart';
 import '../../../main.dart' show themeNotifier;
 import '../../search/music_search_delegate.dart';
 
@@ -826,6 +831,47 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
                             ),
                           );
                         },
+                        onFoldersTap: () {
+                          Navigator.of(context).push(
+                            PageRouteBuilder(
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) =>
+                                      const FolderScreen(),
+                              transitionsBuilder:
+                                  (
+                                    context,
+                                    animation,
+                                    secondaryAnimation,
+                                    child,
+                                  ) {
+                                    const begin = Offset(1.0, 0.0);
+                                    const end = Offset.zero;
+                                    const curve = Curves.easeInOut;
+                                    var slideTween = Tween(
+                                      begin: begin,
+                                      end: end,
+                                    ).chain(CurveTween(curve: curve));
+                                    var fadeTween = Tween<double>(
+                                      begin: 0.0,
+                                      end: 1.0,
+                                    ).chain(CurveTween(curve: curve));
+                                    return SlideTransition(
+                                      position: animation.drive(slideTween),
+                                      child: FadeTransition(
+                                        opacity: animation.drive(fadeTween),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                              transitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
+                              reverseTransitionDuration: const Duration(
+                                milliseconds: 300,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -834,37 +880,92 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
 
                 // Mood Playlists
                 SliverToBoxAdapter(
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 8),
-                      SectionHeader(
-                        title: 'Mood Playlists',
-                        onSeeAllTap: () {},
-                      ),
-                      SizedBox(
-                        height: 200,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: 6,
-                          itemBuilder: (context, index) {
-                            final moods = [
-                              'Happy Vibes',
-                              'Chill',
-                              'Workout',
-                              'Party',
-                              'Sad',
-                              'Focus',
-                            ];
-                            return MusicCard(
-                              title: moods[index],
-                              subtitle: 'Auto-generated',
-                              onTap: () {},
-                            );
-                          },
-                        ),
-                      ),
-                    ],
+                  child: Consumer<MusicPlayerProvider>(
+                    builder: (context, playerProvider, _) {
+                      final moodPlaylists = playerProvider.moodPlaylists;
+                      final moodNames = [
+                        'Happy',
+                        'Workout',
+                        'Party',
+                        'Chill',
+                        'Sad',
+                        'Focus',
+                      ];
+                      final moodIcons = [
+                        Icons.sentiment_very_satisfied_rounded,
+                        Icons.fitness_center_rounded,
+                        Icons.celebration_rounded,
+                        Icons.self_improvement_rounded,
+                        Icons.sentiment_dissatisfied_rounded,
+                        Icons.psychology_rounded,
+                      ];
+
+                      return Column(
+                        children: [
+                          const SizedBox(height: 8),
+                          SectionHeader(
+                            title: 'Mood Playlists',
+                            onSeeAllTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const MoodPlaylistsScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          SizedBox(
+                            height: 200,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              itemCount: 6,
+                              itemBuilder: (context, index) {
+                                final moodName = moodNames[index];
+                                final songs = moodPlaylists[moodName] ?? [];
+
+                                // Get artwork - check custom art first, then albumArt
+                                String artImage = '';
+                                String? customArtPath;
+                                if (songs.isNotEmpty) {
+                                  customArtPath = playerProvider
+                                      .getCustomArtForSong(songs.first.id);
+                                  if (customArtPath != null &&
+                                      customArtPath.isNotEmpty) {
+                                    artImage = customArtPath;
+                                  } else if (songs.first.albumArt != null) {
+                                    artImage = songs.first.albumArt!;
+                                  }
+                                }
+
+                                return MoodMusicCard(
+                                  title: moodName,
+                                  subtitle: '${songs.length} songs',
+                                  artImage: artImage,
+                                  isCustomArt:
+                                      customArtPath != null &&
+                                      customArtPath.isNotEmpty,
+                                  icon: moodIcons[index],
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) => SongListScreen(
+                                          title: moodName,
+                                          songs: songs,
+                                          showSearch: true,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
 
@@ -1055,6 +1156,173 @@ class _MusicHomeScreenState extends State<MusicHomeScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class MoodMusicCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String artImage;
+  final bool isCustomArt;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const MoodMusicCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.artImage,
+    this.isCustomArt = false,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final moodColors = {
+      'Happy': isDark ? const Color(0xFFFFA726) : const Color(0xFFFFB74D),
+      'Workout': isDark ? const Color(0xFFEF5350) : const Color(0xFFE57373),
+      'Party': isDark ? const Color(0xFFAB47BC) : const Color(0xFFBA68C8),
+      'Chill': isDark ? const Color(0xFF26C6DA) : const Color(0xFF4DD0E1),
+      'Sad': isDark ? const Color(0xFF5C6BC0) : const Color(0xFF7986CB),
+      'Focus': isDark ? const Color(0xFF66BB6A) : const Color(0xFF81C784),
+    };
+
+    final cardColor =
+        moodColors[title] ??
+        (isDark ? const Color(0xFFFFA726) : const Color(0xFFFF7043));
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 160,
+        margin: const EdgeInsets.only(right: 12),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            decoration: BoxDecoration(
+              color: cardColor,
+              boxShadow: [
+                BoxShadow(
+                  color: cardColor.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                // Background artwork with gradient overlay (60% from top)
+                if (artImage.isNotEmpty)
+                  Positioned.fill(
+                    child: Stack(
+                      children: [
+                        isCustomArt
+                            ? Image.file(
+                                File(artImage),
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const SizedBox.shrink(),
+                              )
+                            : CachedArtworkWidget(
+                                songId: artImage,
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                fallback: const SizedBox.shrink(),
+                              ),
+                        // Gradient overlay - clear at top 30%, darker at bottom
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                stops: const [0.0, 0.3, 0.6, 1.0],
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.transparent,
+                                  cardColor.withOpacity(0.75),
+                                  cardColor.withOpacity(0.95),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                // Content with shadow for better visibility
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black54,
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.95),
+                          shadows: const [
+                            Shadow(
+                              color: Colors.black54,
+                              blurRadius: 6,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                // Icon in bottom right corner
+                Positioned(
+                  bottom: 18,
+                  right: 16,
+                  child: Icon(
+                    icon,
+                    color: Colors.white,
+                    size: 36,
+                    shadows: const [
+                      Shadow(
+                        color: Colors.black87,
+                        blurRadius: 12,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

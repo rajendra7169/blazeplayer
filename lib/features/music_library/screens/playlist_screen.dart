@@ -1340,3 +1340,5 @@ void _showDeleteDialog(BuildContext context, int index, String playlistName) {
     },
   );
 }
+
+// nice working but in this page we have lots of code line in single page, if we can organizae it like creating different wedget for possible code or somthing else? what ado you suggest? we have some wedget of this page in this path "C:\Users\LOQ\Desktop\blazeplayer\lib\features\player\widgets\playlist_screen" now what do you say? what should we do ?
