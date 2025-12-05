@@ -25,6 +25,15 @@ class AudioPlayerService {
     }
   }
 
+  Future<void> setAudioSource(String filePath) async {
+    try {
+      await _audioPlayer.setFilePath(filePath);
+    } catch (e) {
+      print('Error setting audio source: $e');
+      rethrow;
+    }
+  }
+
   Future<void> pause() async {
     await _audioPlayer.pause();
   }

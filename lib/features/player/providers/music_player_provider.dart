@@ -106,6 +106,8 @@ class MusicPlayerProvider extends ChangeNotifier {
 
   MusicPlayerProvider() {
     _initializeAudioService();
+    // Load last song immediately for mini player - run in background
+    _loadLastPlayedSongImmediately();
     restoreRecentlyPlayedSongs();
     restoreFavoriteSongs();
     loadMostPlayedCounts();
@@ -236,6 +238,64 @@ class MusicPlayerProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     if (_currentSong != null) {
       await prefs.setString('last_played_song_id', _currentSong!.id);
+      // Save complete song data for immediate loading
+      final songData = {
+        'id': _currentSong!.id,
+        'title': _currentSong!.title,
+        'artist': _currentSong!.artist,
+        'album': _currentSong!.album,
+        'albumArt': _currentSong!.albumArt,
+        'duration': _currentSong!.duration.inMilliseconds,
+        'filePath': _currentSong!.filePath,
+        'genre': _currentSong!.genre,
+      };
+      await prefs.setString('last_played_song_data', jsonEncode(songData));
+      print('DEBUG: Saved last played song: ${_currentSong!.title}');
+    }
+  }
+
+  // Load last played song immediately for mini player display
+  Future<void> _loadLastPlayedSongImmediately() async {
+    try {
+      print('DEBUG: Loading last played song immediately...');
+      final prefs = await SharedPreferences.getInstance();
+      final songDataStr = prefs.getString('last_played_song_data');
+      print('DEBUG: Found song data: ${songDataStr != null}');
+      if (songDataStr != null) {
+        final songData = jsonDecode(songDataStr) as Map<String, dynamic>;
+        print('DEBUG: Song data decoded: ${songData['title']}');
+        _currentSong = Song(
+          id: songData['id'] ?? '',
+          title: songData['title'] ?? '',
+          artist: songData['artist'] ?? '',
+          album: songData['album'] ?? '',
+          albumArt: songData['albumArt'],
+          duration: Duration(milliseconds: songData['duration'] ?? 0),
+          filePath: songData['filePath'] ?? '',
+          genre: songData['genre'],
+        );
+        _isPlaying = false;
+
+        // Set minimal playlist context with just this song
+        _playlist = [_currentSong!];
+
+        // Prepare audio source for immediate playback
+        if (_currentSong!.filePath.isNotEmpty) {
+          try {
+            await _audioService.setAudioSource(_currentSong!.filePath);
+            print('DEBUG: Audio source prepared for: ${_currentSong!.title}');
+          } catch (e) {
+            print('DEBUG: Error preparing audio source: $e');
+          }
+        }
+
+        print('DEBUG: Current song set to: ${_currentSong?.title}');
+        notifyListeners(); // This will make mini player appear immediately
+      } else {
+        print('DEBUG: No last played song data found');
+      }
+    } catch (e) {
+      print('Error loading last played song immediately: $e');
     }
   }
 
@@ -449,6 +509,18 @@ class MusicPlayerProvider extends ChangeNotifier {
       // Loop back to first song
       playSong(_playlist[0]);
     } else {
+      // If we only have one song in playlist (immediate loading case),
+      // try to load the full playlist and play next
+      if (_playlist.length == 1 && _originalPlaylist.isNotEmpty) {
+        _playlist = List.from(_originalPlaylist);
+        final newIndex = _originalPlaylist.indexWhere(
+          (s) => s.id == _currentSong!.id,
+        );
+        if (newIndex >= 0 && newIndex < _originalPlaylist.length - 1) {
+          playSong(_originalPlaylist[newIndex + 1]);
+          return;
+        }
+      }
       // End of playlist, stop playing
       _audioService.stop();
       _isPlaying = false;
@@ -470,6 +542,18 @@ class MusicPlayerProvider extends ChangeNotifier {
       playSong(_playlist[currentIndex - 1]);
     } else if (_repeatMode == RepeatMode.all) {
       playSong(_playlist[_playlist.length - 1]);
+    } else {
+      // If we only have one song in playlist (immediate loading case),
+      // try to load the full playlist and play previous
+      if (_playlist.length == 1 && _originalPlaylist.isNotEmpty) {
+        _playlist = List.from(_originalPlaylist);
+        final newIndex = _originalPlaylist.indexWhere(
+          (s) => s.id == _currentSong!.id,
+        );
+        if (newIndex > 0) {
+          playSong(_originalPlaylist[newIndex - 1]);
+        }
+      }
     }
   }
 
