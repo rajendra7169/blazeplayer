@@ -8,7 +8,7 @@ import '../../player/models/song_model.dart';
 import 'song_list_screen.dart';
 
 class FolderScreen extends StatelessWidget {
-  const FolderScreen({Key? key}) : super(key: key);
+  const FolderScreen({super.key});
 
   // TODO: Replace with real folder fetching logic
   List<Map<String, dynamic>> getFolders(List allSongs) {
@@ -384,12 +384,12 @@ class FolderListItem extends StatelessWidget {
   final VoidCallback? onOptionsTap;
 
   const FolderListItem({
-    Key? key,
+    super.key,
     required this.name,
     required this.songCount,
     required this.location,
     this.onOptionsTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

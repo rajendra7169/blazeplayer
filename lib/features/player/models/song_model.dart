@@ -11,6 +11,7 @@ class Song {
   final int dateAdded;
   final int? trackNumber;
   final String? customArtPath;
+  final int? bpm;
 
   Song({
     required this.id,
@@ -25,6 +26,7 @@ class Song {
     this.dateAdded = 0,
     this.trackNumber,
     this.customArtPath,
+    this.bpm,
   });
 
   // Dummy songs for testing
@@ -79,6 +81,7 @@ class Song {
     int? dateAdded,
     int? trackNumber,
     String? customArtPath,
+    int? bpm,
   }) {
     return Song(
       id: id ?? this.id,
@@ -93,6 +96,7 @@ class Song {
       dateAdded: dateAdded ?? this.dateAdded,
       trackNumber: trackNumber ?? this.trackNumber,
       customArtPath: customArtPath ?? this.customArtPath,
+      bpm: bpm ?? this.bpm,
     );
   }
 }

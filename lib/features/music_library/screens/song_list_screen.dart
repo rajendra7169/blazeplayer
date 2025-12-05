@@ -11,16 +11,215 @@ class SongListScreen extends StatefulWidget {
   final String title;
   final List<dynamic> songs;
   final bool showSearch;
+  final bool isMoodPlaylist;
 
   const SongListScreen({
     super.key,
     required this.title,
     required this.songs,
     this.showSearch = true,
+    this.isMoodPlaylist = false,
   });
 
   @override
   State<SongListScreen> createState() => _SongListScreenState();
+}
+
+// --- Modal sheet for adding songs to mood playlist ---
+
+class _AddSongsToMoodSheet extends StatefulWidget {
+  final String mood;
+  const _AddSongsToMoodSheet({required this.mood});
+
+  @override
+  State<_AddSongsToMoodSheet> createState() => _AddSongsToMoodSheetState();
+}
+
+class _AddSongsToMoodSheetState extends State<_AddSongsToMoodSheet> {
+  late List<Song> allSongs;
+  Set<String> selectedSongIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    final provider = Provider.of<MusicPlayerProvider>(context, listen: false);
+    allSongs = provider.allSongs;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = isDark
+        ? const Color(0xFFFFA726)
+        : const Color(0xFFFF7043);
+    final cardColor = isDark
+        ? const Color(0xFF2C2C2C)
+        : const Color(0xFFF5F5F5);
+    final screenHeight = MediaQuery.of(context).size.height;
+    return SafeArea(
+      child: Container(
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              const SizedBox(height: 24),
+              Text(
+                'Add songs to ${widget.mood} playlist',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 19,
+                  color: accentColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 18),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: allSongs.length,
+                  itemBuilder: (context, i) {
+                    final song = allSongs[i];
+                    final checked = selectedSongIds.contains(song.id);
+                    Widget artworkWidget;
+                    final artPath = song.albumArt;
+                    // Debug print to help diagnose artwork path issues
+                    // ignore: avoid_print
+                    print('Artwork path for song "${song.title}": $artPath');
+                    if (artPath != null &&
+                        artPath.isNotEmpty &&
+                        File(artPath).existsSync()) {
+                      artworkWidget = SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(
+                            File(artPath),
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white12
+                                        : Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Icon(
+                                    Icons.music_note_rounded,
+                                    color: accentColor,
+                                    size: 24,
+                                  ),
+                                ),
+                          ),
+                        ),
+                      );
+                    } else {
+                      artworkWidget = SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white12 : Colors.grey[300],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.music_note_rounded,
+                              color: accentColor,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white10 : Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8, right: 8),
+                            child: artworkWidget,
+                          ),
+                          Expanded(
+                            child: ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                song.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: Text(
+                                song.artist,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: Checkbox(
+                                value: checked,
+                                onChanged: (val) {
+                                  setState(() {
+                                    if (val == true) {
+                                      selectedSongIds.add(song.id);
+                                    } else {
+                                      selectedSongIds.remove(song.id);
+                                    }
+                                  });
+                                },
+                                activeColor: accentColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accentColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    elevation: 0,
+                  ),
+                  onPressed: () {
+                    final provider = Provider.of<MusicPlayerProvider>(
+                      context,
+                      listen: false,
+                    );
+                    provider.addSongsToMood(
+                      widget.mood,
+                      selectedSongIds.toList(),
+                    );
+                    Navigator.pop(context);
+                  },
+                  child: const Text(
+                    'Add Selected Songs',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _SongListScreenState extends State<SongListScreen> {
@@ -137,11 +336,31 @@ class _SongListScreenState extends State<SongListScreen> {
                               ),
                             ),
                             const Spacer(),
-                            Icon(
-                              Icons.music_note_rounded,
-                              color: accentColor,
-                              size: 24,
-                            ),
+                            if (widget.isMoodPlaylist)
+                              IconButton(
+                                icon: Icon(
+                                  Icons.add_circle_outline,
+                                  color: accentColor,
+                                ),
+                                tooltip: 'Add songs to this playlist',
+                                onPressed: () async {
+                                  await showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    builder: (context) {
+                                      return _AddSongsToMoodSheet(
+                                        mood: widget.title,
+                                      );
+                                    },
+                                  );
+                                },
+                              )
+                            else
+                              Icon(
+                                Icons.music_note_rounded,
+                                color: accentColor,
+                                size: 24,
+                              ),
                           ],
                         ),
                       ),

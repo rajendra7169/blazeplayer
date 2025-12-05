@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../player/providers/music_player_provider.dart';
 import '../../player/widgets/mini_player.dart';
 import '../../player/widgets/cached_artwork_widget.dart';
-import '../../player/models/song_model.dart';
 import 'song_list_screen.dart';
 
 class MoodPlaylistsScreen extends StatelessWidget {
@@ -140,6 +139,7 @@ class MoodPlaylistsScreen extends StatelessWidget {
                                           title: moodName,
                                           songs: songs,
                                           showSearch: true,
+                                          isMoodPlaylist: true,
                                         ),
                                       ),
                                     );
@@ -174,11 +174,41 @@ class MoodPlaylistsScreen extends StatelessWidget {
                                                       bottomRight:
                                                           Radius.circular(18),
                                                     ),
-                                                child: artImages.isNotEmpty
-                                                    ? AlbumArtGrid(
-                                                        artImages: artImages,
-                                                      )
-                                                    : _albumPlaceholder(isDark),
+                                                child: Stack(
+                                                  children: [
+                                                    artImages.isNotEmpty
+                                                        ? SizedBox.expand(
+                                                            child: AlbumArtGrid(
+                                                              artImages:
+                                                                  artImages,
+                                                            ),
+                                                          )
+                                                        : _albumPlaceholder(
+                                                            isDark,
+                                                          ),
+                                                    // Left-to-right gradient overlay
+                                                    Positioned.fill(
+                                                      child: Container(
+                                                        decoration: BoxDecoration(
+                                                          gradient: LinearGradient(
+                                                            begin: Alignment
+                                                                .centerLeft,
+                                                            end: Alignment
+                                                                .centerRight,
+                                                            colors: [
+                                                              Colors.black
+                                                                  .withOpacity(
+                                                                    0.22,
+                                                                  ),
+                                                              Colors
+                                                                  .transparent,
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -211,7 +241,10 @@ class MoodPlaylistsScreen extends StatelessWidget {
                                           ),
                                           // Content (left side)
                                           Padding(
-                                            padding: const EdgeInsets.all(16),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 10,
+                                            ),
                                             child: Column(
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
@@ -221,24 +254,24 @@ class MoodPlaylistsScreen extends StatelessWidget {
                                                 Icon(
                                                   moodIcon,
                                                   color: Colors.white,
-                                                  size: 32,
+                                                  size: 28,
                                                 ),
-                                                const SizedBox(height: 8),
+                                                const SizedBox(height: 6),
                                                 Text(
                                                   moodName,
                                                   style: const TextStyle(
                                                     color: Colors.white,
-                                                    fontSize: 18,
+                                                    fontSize: 17,
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
-                                                const SizedBox(height: 4),
+                                                const SizedBox(height: 3),
                                                 Text(
                                                   '${songs.length} songs',
                                                   style: TextStyle(
                                                     color: Colors.white
                                                         .withOpacity(0.85),
-                                                    fontSize: 13,
+                                                    fontSize: 12,
                                                   ),
                                                 ),
                                               ],
@@ -307,11 +340,13 @@ class AlbumArtGrid extends StatelessWidget {
     }
 
     return GridView.builder(
+      padding: EdgeInsets.zero,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         mainAxisSpacing: 0,
         crossAxisSpacing: 0,
+        childAspectRatio: 0.8, // Fill vertical space better
       ),
       itemCount: 4,
       itemBuilder: (context, i) {

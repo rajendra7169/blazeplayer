@@ -11,6 +11,19 @@ import '../services/audio_player_service.dart';
 import 'package:blazeplayer/core/services/local_storage_service.dart';
 
 class MusicPlayerProvider extends ChangeNotifier {
+  // Add songs to a mood playlist manually
+  void addSongsToMood(String mood, List<String> songIds) {
+    if (_moodPlaylists.containsKey(mood)) {
+      for (final id in songIds) {
+        if (!_moodPlaylists[mood]!.contains(id)) {
+          _moodPlaylists[mood]!.add(id);
+        }
+      }
+      saveMoodPlaylists();
+      notifyListeners();
+    }
+  }
+
   // --- Playlist Getters for PlaylistScreen ---
   /// Songs marked as favorite by the user
   List<Song> get favouriteSongs {
@@ -387,8 +400,17 @@ class MusicPlayerProvider extends ChangeNotifier {
         await _audioService.pause();
         _isPlaying = false;
       } else {
-        await _audioService.resume();
-        _isPlaying = true;
+        // If we have a current song but not playing, we need to start/resume
+        if (_currentSong != null) {
+          // Try to resume first, if that fails, play the song from the beginning
+          try {
+            await _audioService.resume();
+            _isPlaying = true;
+          } catch (e) {
+            // Resume failed, likely because no audio source is loaded, so play the song
+            await playSong(_currentSong!);
+          }
+        }
       }
       notifyListeners();
     } catch (e) {
@@ -793,7 +815,7 @@ class MusicPlayerProvider extends ChangeNotifier {
     _moodPlaylists.forEach((key, value) => value.clear());
 
     for (final song in _originalPlaylist) {
-      final moods = _classifySongMood(song);
+      final moods = await _classifySongMoodBest(song);
       for (final mood in moods) {
         if (_moodPlaylists.containsKey(mood)) {
           _moodPlaylists[mood]!.add(song.id);
@@ -805,47 +827,127 @@ class MusicPlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<String> _classifySongMood(Song song) {
+  Future<List<String>> _classifySongMoodBest(Song song) async {
     final moods = <String>[];
     final genre = (song.genre ?? '').toLowerCase();
     final title = (song.title ?? '').toLowerCase();
     final artist = (song.artist ?? '').toLowerCase();
+    final album = (song.album ?? '').toLowerCase();
     final durationSeconds = song.duration.inSeconds;
+    final bpm = song.bpm ?? 0;
 
-    // Genre-based classification
-    if (_isHappyGenre(genre)) moods.add('Happy');
-    if (_isWorkoutGenre(genre)) moods.add('Workout');
-    if (_isPartyGenre(genre)) moods.add('Party');
-    if (_isChillGenre(genre)) moods.add('Chill');
-    if (_isSadGenre(genre)) moods.add('Sad');
-    if (_isFocusGenre(genre)) moods.add('Focus');
+    // 1. Try AudD API for mood and BPM if not already set
+    String? auddMood;
+    int? auddBpm;
+    try {
+      final auddResult = await _fetchAudDMoodAndBpm(title, artist);
+      auddMood = auddResult['mood'];
+      auddBpm = auddResult['bpm'];
+    } catch (_) {}
 
-    // Keyword-based classification in title and artist
-    if (_containsHappyKeywords(title)) moods.add('Happy');
-    if (_containsWorkoutKeywords(title)) moods.add('Workout');
-    if (_containsPartyKeywords(title)) moods.add('Party');
-    if (_containsChillKeywords(title)) moods.add('Chill');
-    if (_containsSadKeywords(title)) moods.add('Sad');
-    if (_containsRomanticKeywords(title)) {
-      if (!moods.contains('Chill')) moods.add('Chill');
+    // Use AudD mood if available
+    if (auddMood != null && auddMood.isNotEmpty) {
+      moods.add(_mapAudDMoodToAppMood(auddMood));
     }
 
-    // Duration-based heuristics
-    if (durationSeconds > 300) {
-      // Long songs (>5 min) are good for focus
-      if (!moods.contains('Focus')) moods.add('Focus');
-    }
+    // Use AudD BPM if available
+    final effectiveBpm = auddBpm ?? bpm;
 
-    // If no mood assigned, use default based on genre or assign to Chill
-    if (moods.isEmpty) {
-      if (genre.isNotEmpty) {
-        moods.add('Chill'); // Default fallback
-      } else {
+    // 2. BPM checks
+    if (effectiveBpm > 120) {
+      if (_isPartyGenre(genre) ||
+          _containsPartyKeywords(title) ||
+          _containsPartyKeywords(album)) {
+        moods.add('Party');
+      } else if (_isWorkoutGenre(genre) ||
+          _containsWorkoutKeywords(title) ||
+          _containsWorkoutKeywords(album)) {
+        moods.add('Workout');
+      }
+    } else if (effectiveBpm < 90) {
+      if (_isSadGenre(genre) ||
+          _containsSadKeywords(title) ||
+          _containsSadKeywords(album)) {
+        moods.add('Sad');
+      } else if (_isChillGenre(genre) ||
+          _containsChillKeywords(title) ||
+          _containsChillKeywords(album)) {
         moods.add('Chill');
       }
     }
 
-    return moods;
+    // 3. Genre/keyword/artist/album context
+    if (_isHappyGenre(genre) ||
+        _containsHappyKeywords(title) ||
+        _containsHappyKeywords(album)) {
+      moods.add('Happy');
+    }
+    if (_isFocusGenre(genre) || durationSeconds > 300) {
+      moods.add('Focus');
+    }
+    // If artist is known for party/workout, boost those moods
+    if (artist.contains('pitbull') ||
+        artist.contains('calvin harris') ||
+        artist.contains('david guetta')) {
+      moods.add('Party');
+    }
+    if (artist.contains('eminem') || artist.contains('dmx')) {
+      moods.add('Workout');
+    }
+    if (artist.contains('adele') || artist.contains('sam smith')) {
+      moods.add('Sad');
+    }
+
+    // Only add strong matches, avoid duplicates
+    final uniqueMoods = <String>{};
+    for (final mood in moods) {
+      if (_moodPlaylists.containsKey(mood)) {
+        uniqueMoods.add(mood);
+      }
+    }
+    // Fallback
+    if (uniqueMoods.isEmpty) {
+      uniqueMoods.add('Chill');
+    }
+    return uniqueMoods.toList();
+  }
+
+  Future<Map<String, dynamic>> _fetchAudDMoodAndBpm(
+    String title,
+    String artist,
+  ) async {
+    // Replace with your AudD API key
+    const apiKey = '488d79b4b321c972a5762e99841d8089';
+    final url = Uri.parse(
+      'https://api.audd.io/findLyrics/?q=${Uri.encodeComponent('$title $artist')}&api_token=$apiKey',
+    );
+    final response = await HttpClient().getUrl(url).then((req) => req.close());
+    final body = await response.transform(utf8.decoder).join();
+    final data = jsonDecode(body);
+    // Try to extract mood and bpm from AudD response
+    String? mood;
+    int? bpm;
+    if (data['result'] != null &&
+        data['result'] is List &&
+        data['result'].isNotEmpty) {
+      final track = data['result'][0];
+      mood = track['mood'] as String?;
+      bpm = track['bpm'] is int
+          ? track['bpm'] as int
+          : int.tryParse(track['bpm']?.toString() ?? '');
+    }
+    return {'mood': mood, 'bpm': bpm};
+  }
+
+  String _mapAudDMoodToAppMood(String auddMood) {
+    final m = auddMood.toLowerCase();
+    if (m.contains('happy')) return 'Happy';
+    if (m.contains('sad')) return 'Sad';
+    if (m.contains('party') || m.contains('dance')) return 'Party';
+    if (m.contains('chill') || m.contains('relax')) return 'Chill';
+    if (m.contains('workout') || m.contains('energy')) return 'Workout';
+    if (m.contains('focus') || m.contains('study')) return 'Focus';
+    return 'Chill';
   }
 
   bool _isHappyGenre(String genre) {
